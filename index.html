@@ -16,10 +16,46 @@
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0E0E0D" />
     <meta
       name="description"
-      content="ReadMyRepo maps any GitHub repository: dependency graph, security and performance findings, and a ready-to-commit AGENTS.md. Runs entirely in your browser."
+      content="Paste any GitHub repo to see how its files connect, spot leaked keys, unsafe code and slow queries, and get an AGENTS.md for your AI coding assistant. Free, in your browser."
     />
+    <link rel="canonical" href="https://readmyrepo.com/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="Emmanouil Kontos" />
+
+    <!-- Social previews (X, LinkedIn, Slack, Discord…) — these crawlers do not run JavaScript -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ReadMyRepo" />
+    <meta property="og:url" content="https://readmyrepo.com/" />
+    <meta property="og:title" content="ReadMyRepo · Understand any GitHub repo in seconds" />
+    <meta property="og:description" content="A map of how the files connect, plain-English security and performance findings, and a ready-made AGENTS.md for your AI assistant. Free, runs in your browser." />
+    <meta property="og:image" content="https://readmyrepo.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ReadMyRepo: a dependency map of a GitHub repository with scores for architecture, security and performance." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ReadMyRepo · Understand any GitHub repo in seconds" />
+    <meta name="twitter:description" content="Paste a GitHub repo. See how it fits together, what is risky or slow, and get an AGENTS.md for your AI assistant." />
+    <meta name="twitter:image" content="https://readmyrepo.com/og-image.png" />
+    <meta name="twitter:image:alt" content="ReadMyRepo: a dependency map of a GitHub repository with scores for architecture, security and performance." />
+
+    <!-- Structured data: a data block, never executed, so it is unaffected by script-src -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "ReadMyRepo",
+        "url": "https://readmyrepo.com/",
+        "description": "See how any GitHub repository fits together: a dependency map, plain-English security and performance findings, and a ready-made AGENTS.md for AI coding assistants.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Any (web browser)",
+        "browserRequirements": "Requires JavaScript",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Emmanouil Kontos", "url": "https://github.com/EmmanouelKontos" }
+      }
+    </script>
     <script src="/theme-init.js"></script>
-    <title>ReadMyRepo · See how a codebase fits together</title>
+    <title>ReadMyRepo · Understand any GitHub repo in seconds</title>
     <link rel="preconnect" href="https://api.github.com" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -30,6 +66,17 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <main style="max-width: 40rem; margin: 4rem auto; padding: 0 1rem; font-family: system-ui, sans-serif; line-height: 1.6">
+        <h1>ReadMyRepo: understand any GitHub repo in seconds</h1>
+        <p>
+          Paste a GitHub repository to see how its files connect, what could be risky or slow, and how to fix it, with a
+          ready-made AGENTS.md guide for your AI coding assistant. Supports TypeScript, JavaScript, Python, Go, Rust, C/C++,
+          Chrome extensions and Tauri apps. Free, and your code never leaves your browser.
+        </p>
+        <p>ReadMyRepo needs JavaScript to run. Please enable it and reload the page.</p>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

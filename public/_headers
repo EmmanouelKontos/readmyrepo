@@ -19,3 +19,17 @@
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Only readmyrepo.com should be indexed; keep the pages.dev and preview copies out of search results.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://:version.:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://www.readmyrepo.com/*
+  X-Robots-Tag: noindex
+
+/og-image.png
+  Cache-Control: public, max-age=86400
+
