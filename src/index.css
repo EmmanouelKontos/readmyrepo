@@ -143,9 +143,12 @@ p, blockquote, li, .pretty-copy {
   max-width: 68ch;
 }
 
-:where(a:any-link, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
-  outline: 2px solid var(--accent-brand);
-  outline-offset: 2px;
+/* Base layer so component rules (e.g. `.field` drawing its own ring around an inner input) can override it. */
+@layer base {
+  :where(a:any-link, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid var(--accent-brand);
+    outline-offset: 2px;
+  }
 }
 
 .visually-hidden:where(:not(:focus-within, :active)) {

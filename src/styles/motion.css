@@ -20,7 +20,7 @@
 }
 
 @keyframes atlas-edge-draw {
-  from { stroke-dashoffset: var(--edge-len, 400); }
+  from { stroke-dashoffset: 1; }
   to { stroke-dashoffset: 0; }
 }
 
@@ -36,8 +36,8 @@
 
   /* Highlighted graph edges draw in once when selection changes */
   .atlas-edge-draw {
-    stroke-dasharray: var(--edge-len, 400);
-    animation: atlas-edge-draw 420ms var(--ease-out) both;
+    stroke-dasharray: 1;
+    animation: atlas-edge-draw 380ms var(--ease-out) both;
   }
 }
 
@@ -113,17 +113,47 @@
   &:hover { border-color: var(--border-strong); }
 }
 
-/* Graph nodes */
+/* ── Dependency map ──────────────────────────────────────────────────────────
+   One easing, one duration family: opacity/stroke cross-fade at --dur-base,
+   pinned paths draw in once, the selection bar grows from its centre.
+   ────────────────────────────────────────────────────────────────────────── */
 .atlas-svg-node {
+  outline: none;
   transition: opacity var(--dur-base) var(--ease-out);
-  & rect { transition: stroke var(--dur-fast) var(--ease-out), fill var(--dur-fast) var(--ease-out); }
-  &:hover rect { fill: var(--bg-subtle); }
-  &:focus-visible { outline: none; }
-  &:focus-visible rect { stroke: var(--accent-brand) !important; stroke-width: 2px !important; }
+  & .atlas-node-card {
+    fill: var(--bg-surface);
+    transition: stroke var(--dur-base) var(--ease-out), fill var(--dur-fast) var(--ease-out), stroke-width var(--dur-fast) var(--ease-out);
+  }
+  &:hover .atlas-node-card { fill: var(--bg-subtle); }
+  &[data-selected] .atlas-node-card { fill: var(--bg-elevated); }
+  & .atlas-node-bar {
+    fill: var(--accent-brand);
+    opacity: 0;
+    scale: 1 0.3;
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: opacity var(--dur-base) var(--ease-out), scale 260ms var(--ease-out);
+  }
+  &[data-selected] .atlas-node-bar { opacity: 1; scale: 1 1; }
+  &:focus-visible .atlas-node-card { stroke: var(--accent-brand) !important; stroke-width: 2px !important; }
 }
 .atlas-svg-edge {
-  transition: stroke var(--dur-base) var(--ease-out), stroke-opacity var(--dur-base) var(--ease-out),
-    stroke-width var(--dur-base) var(--ease-out);
+  transition: stroke var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out), stroke-width var(--dur-base) var(--ease-out);
+}
+.atlas-graph { cursor: default; }
+
+@keyframes atlas-node-in {
+  from { opacity: 0; translate: 0 4px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .atlas-graph-scroll { scroll-behavior: smooth; }
+  /* First paint: modules settle in reading order, links fade in once they have landed */
+  .atlas-node-body { animation: atlas-node-in 320ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 12ms); }
+  .atlas-graph-edges { animation: atlas-fade-in 360ms var(--ease-out) 180ms both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-svg-node, .atlas-svg-node .atlas-node-card, .atlas-svg-node .atlas-node-bar, .atlas-svg-edge { transition: none; }
 }
 
 /* Scoped view transition for tab switches (cross-fade only) */

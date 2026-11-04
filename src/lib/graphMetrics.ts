@@ -28,27 +28,35 @@ export function isCommentLine(line: string, filePath: string): boolean {
 
 export { detectGraphCyclesAndInversions } from './cycleDetector';
 
-function sumWeightedPenalties(
-  findings: AuditFinding[],
-  weights: Record<AuditSeverity, number>,
-  maxPerRule = 32
-): number {
-  const ruleHits = new Map<string, number>();
-  const ruleTotals = new Map<string, number>();
+const SEVERITY_ORDER: Record<AuditSeverity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
-  for (const f of findings) {
-    const hits = (ruleHits.get(f.ruleId) ?? 0) + 1;
-    ruleHits.set(f.ruleId, hits);
-    const base = weights[f.severity];
-    const multiplier = hits === 1 ? 1 : hits === 2 ? 0.65 : 0.35;
-    const prevTotal = ruleTotals.get(f.ruleId) ?? 0;
-    const cap = f.ruleId === 'ARCH-001' ? 28 : maxPerRule;
-    ruleTotals.set(f.ruleId, Math.min(cap, prevTotal + Math.round(base * multiplier)));
-  }
-
+/**
+ * Per rule, the worst finding counts in full and repeats of the same rule count less
+ * (1 → 0.65 → 0.35), capped per rule. Findings are ranked by severity first so the
+ * result never depends on the order files were fetched in.
+ */
+function sumWeightedPenalties(findings: AuditFinding[], weights: Record<AuditSeverity, number>, maxPerRule = 32): number {
+  const byRule = new Map<string, AuditFinding[]>();
+  for (const f of findings) byRule.set(f.ruleId, [...(byRule.get(f.ruleId) ?? []), f]);
   let total = 0;
-  for (const val of ruleTotals.values()) total += val;
+  for (const list of byRule.values()) {
+    const ranked = [...list].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+    const sum = ranked.reduce((acc, f, i) => acc + Math.round(weights[f.severity] * (i === 0 ? 1 : i === 1 ? 0.65 : 0.35)), 0);
+    total += Math.min(maxPerRule, sum);
+  }
   return total;
+}
+
+/**
+ * Oversized modules are a density problem: one large file in a 40-module sample matters far less
+ * than one in a 3-module app. Penalty grows with the (severity-weighted) share of large files.
+ */
+const LARGE_FILE_MAX_PENALTY = 28;
+function largeFilePenalty(findings: AuditFinding[], totalFiles: number): number {
+  if (findings.length === 0) return 0;
+  const weighted = findings.reduce((acc, f) => acc + (f.severity === 'high' || f.severity === 'critical' ? 2 : 1), 0);
+  const share = weighted / Math.max(1, totalFiles);
+  return Math.min(LARGE_FILE_MAX_PENALTY, Math.max(4, Math.round(36 * Math.sqrt(share))));
 }
 
 export function computeAccurateScores(
@@ -71,12 +79,13 @@ export function computeAccurateScores(
     medium: 7,
     low: 3,
   });
-  const archPenalty = sumWeightedPenalties(archFindings, {
-    critical: 20,
-    high: 16,
-    medium: 12,
-    low: 5,
-  });
+  const largeFiles = archFindings.filter((f) => f.ruleId === 'ARCH-001');
+  const archPenalty =
+    largeFilePenalty(largeFiles, nodes.length) +
+    sumWeightedPenalties(
+      archFindings.filter((f) => f.ruleId !== 'ARCH-001'),
+      { critical: 20, high: 16, medium: 12, low: 5 }
+    );
 
   const security = Math.max(5, 100 - secPenalty);
   const performance = Math.max(5, 100 - perfPenalty);

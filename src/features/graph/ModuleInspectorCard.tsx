@@ -1,22 +1,16 @@
-import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Code2, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Code2, RefreshCcw, ShieldCheck, X } from 'lucide-react';
 import { AuditFinding, RepoNode } from '../../types/atlas';
 import { SEVERITY_TONE, SeverityBadge } from '../../components/ui/SeverityBadge';
+import { LAYER_INFO } from './graphLayout';
 
 interface ModuleInspectorCardProps {
   selectedNode: RepoNode | undefined;
   findings: AuditFinding[];
   onSelectNodeId: (id: string) => void;
   onInspectCode: (node: RepoNode) => void;
+  onClose: () => void;
 }
 
-const LAYER_LABEL: Record<RepoNode['layer'], string> = {
-  entry: 'Entry',
-  feature: 'Feature',
-  ui: 'UI',
-  service: 'Service',
-  data: 'Types & data',
-  config: 'Config',
-};
 
 function LinkList({ title, ids, empty, direction, onSelect }: { title: string; ids: string[]; empty: string; direction: 'out' | 'in'; onSelect: (id: string) => void }) {
   const Icon = direction === 'out' ? ArrowUpRight : ArrowDownLeft;
@@ -32,7 +26,7 @@ function LinkList({ title, ids, empty, direction, onSelect }: { title: string; i
         <div className="flex flex-wrap gap-1">
           {ids.map((id) => (
             <button key={id} type="button" onClick={() => onSelect(id)} className="btn btn-secondary btn-sm font-mono-code text-secondary" title={id}>
-              <Icon size={12} strokeWidth={1.75} className="text-muted" aria-hidden="true" />
+              <Icon size={12} strokeWidth={1.75} aria-hidden="true" style={{ color: direction === 'out' ? 'var(--text-primary)' : 'var(--accent-brand)' }} />
               {id.split('/').pop()}
             </button>
           ))}
@@ -42,13 +36,13 @@ function LinkList({ title, ids, empty, direction, onSelect }: { title: string; i
   );
 }
 
-export function ModuleInspectorCard({ selectedNode, findings, onSelectNodeId, onInspectCode }: ModuleInspectorCardProps) {
+export function ModuleInspectorCard({ selectedNode, findings, onSelectNodeId, onInspectCode, onClose }: ModuleInspectorCardProps) {
   if (!selectedNode) return null;
   const moduleFindings = findings.filter((f) => f.filePath === selectedNode.path);
-  const stats: Array<[string, string]> = [
-    ['Lines', selectedNode.linesOfCode.toLocaleString()],
-    ['Tokens', `~${selectedNode.estimatedTokens.toLocaleString()}`],
-    ['Exports', String(selectedNode.exportsCount)],
+  const stats: Array<[string, string, string]> = [
+    ['Lines', selectedNode.linesOfCode.toLocaleString(), 'Total lines in the file, including blank lines and comments'],
+    ['Tokens', `~${selectedNode.estimatedTokens.toLocaleString()}`, 'Roughly how much of an AI assistant’s context this file uses (about 4 characters per token)'],
+    ['Exports', String(selectedNode.exportsCount), 'How many functions, classes, types or values this file shares with other files'],
   ];
 
   return (
@@ -56,15 +50,20 @@ export function ModuleInspectorCard({ selectedNode, findings, onSelectNodeId, on
       <div key={selectedNode.id} className="atlas-fade-in flex flex-col flex-1">
         <div className="px-4 py-3 divider-b flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-0.5">
-            <p className="eyebrow">{LAYER_LABEL[selectedNode.layer]} layer</p>
+            <p className="eyebrow" title={LAYER_INFO[selectedNode.layer].description}>{LAYER_INFO[selectedNode.layer].label} layer</p>
             <h3 className="font-mono-code text-[0.8125rem] font-medium break-all leading-snug">{selectedNode.path}</h3>
           </div>
-          <SeverityBadge severity={selectedNode.maxSeverity} />
+          <div className="flex items-center gap-1 shrink-0">
+            <SeverityBadge severity={selectedNode.maxSeverity} />
+            <button type="button" onClick={onClose} aria-label="Clear selection" title="Clear selection (Esc)" className="btn btn-ghost btn-icon btn-sm -mr-1.5">
+              <X size={14} strokeWidth={1.75} aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         <dl className="grid grid-cols-3 divider-b">
-          {stats.map(([label, value], i) => (
-            <div key={label} className="px-4 py-3" style={i > 0 ? { borderLeft: '1px solid var(--border-hairline)' } : undefined}>
+          {stats.map(([label, value, hint], i) => (
+            <div key={label} title={hint} className="px-4 py-3" style={i > 0 ? { borderLeft: '1px solid var(--border-hairline)' } : undefined}>
               <dt className="text-[0.75rem] text-muted">{label}</dt>
               <dd className="font-mono-code text-[0.9375rem] tabular-nums mt-0.5">{value}</dd>
             </div>
@@ -77,13 +76,13 @@ export function ModuleInspectorCard({ selectedNode, findings, onSelectNodeId, on
               {selectedNode.isGodFile && (
                 <p className="tone-callout tone-warning flex items-center gap-2 px-3 py-2 text-[0.8125rem]">
                   <AlertTriangle size={14} strokeWidth={1.75} className="tone-text shrink-0" aria-hidden="true" />
-                  {selectedNode.codeLines ?? selectedNode.linesOfCode} code lines — over the {selectedNode.sizeLimit ?? 220}-line limit
+                  {selectedNode.codeLines ?? selectedNode.linesOfCode} lines of code, over the suggested {selectedNode.sizeLimit ?? 220}. Consider splitting it.
                 </p>
               )}
               {selectedNode.inCycle && (
                 <p className="tone-callout tone-danger flex items-center gap-2 px-3 py-2 text-[0.8125rem]">
                   <RefreshCcw size={14} strokeWidth={1.75} className="tone-text shrink-0" aria-hidden="true" />
-                  Part of a circular import
+                  In an import loop: it depends on files that depend back on it.
                 </p>
               )}
             </div>
@@ -117,8 +116,8 @@ export function ModuleInspectorCard({ selectedNode, findings, onSelectNodeId, on
             )}
           </div>
 
-          <LinkList title="Imports" ids={selectedNode.imports} empty="No local imports" direction="out" onSelect={onSelectNodeId} />
-          <LinkList title="Imported by" ids={selectedNode.importedBy} empty="Nothing imports this module" direction="in" onSelect={onSelectNodeId} />
+          <LinkList title="Uses" ids={selectedNode.imports} empty="Doesn't use other files in this scan" direction="out" onSelect={onSelectNodeId} />
+          <LinkList title="Used by" ids={selectedNode.importedBy} empty="No other file in this scan uses it" direction="in" onSelect={onSelectNodeId} />
         </div>
 
         <div className="p-4 divider-t">

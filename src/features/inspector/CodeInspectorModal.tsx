@@ -4,6 +4,7 @@ import { AuditFinding, RepoNode } from '../../types/atlas';
 import { SeverityBadge } from '../../components/ui/SeverityBadge';
 import { copyTextSafe } from '../../lib/clipboard';
 import { applyQuickRemediationToCode } from '../../lib/snapshotTracker';
+import { InlineCodeText } from '../../components/ui/InlineCodeText';
 
 interface CodeInspectorModalProps {
   node: RepoNode | null;
@@ -146,7 +147,7 @@ export function CodeInspectorModal({ node, findings, onApplyFileChange, onClose 
                         <span className="text-[0.8125rem] font-medium">{f.title}</span>
                         <span className="font-mono-code text-muted text-xs">{f.ruleId} · line {f.lineNumber}</span>
                       </div>
-                      <p className="text-secondary text-[0.8125rem]">{f.remediation}</p>
+                      <p className="text-secondary text-[0.8125rem]"><InlineCodeText text={f.remediation} /></p>
                     </div>
                     <button type="button" onClick={() => copyFindingPrompt(f)} className="btn btn-ghost btn-sm shrink-0" aria-live="polite">
                       {copiedId === f.id ? <Check {...ICON} className="tone-success tone-text" /> : <Copy {...ICON} />}

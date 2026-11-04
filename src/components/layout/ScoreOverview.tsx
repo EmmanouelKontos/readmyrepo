@@ -25,9 +25,10 @@ export function ScoreOverview({ analysis, diff, activeTab, auditFilter, onOpenTa
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-stretch">
       <ScoreCard
         label="Architecture"
+        description="How cleanly files are split up and connected"
         score={scores.architecture}
         delta={diff?.architectureDelta}
-        subtitle={`${plural(scores.circularDepsCount, 'cycle', 'cycles')} · ${plural(scores.godFilesCount, 'large file', 'large files')}`}
+        subtitle={`${plural(scores.circularDepsCount, 'import loop', 'import loops')} · ${plural(scores.godFilesCount, 'oversized file', 'oversized files')}`}
         actionLabel="Map"
         isActive={activeTab === 'graph'}
         onClick={() => onOpenTab('graph')}
@@ -35,6 +36,7 @@ export function ScoreOverview({ analysis, diff, activeTab, auditFilter, onOpenTa
       />
       <ScoreCard
         label="Security"
+        description="Leaked keys and code attackers could abuse"
         score={scores.security}
         delta={diff?.securityDelta}
         subtitle={securityCount === 0 ? 'No issues' : plural(securityCount, 'issue', 'issues')}
@@ -45,6 +47,7 @@ export function ScoreOverview({ analysis, diff, activeTab, auditFilter, onOpenTa
       />
       <ScoreCard
         label="Performance"
+        description="Patterns that make the app slower than needed"
         score={scores.performance}
         delta={diff?.performanceDelta}
         subtitle={perfCount === 0 ? 'No issues' : plural(perfCount, 'issue', 'issues')}
@@ -55,11 +58,12 @@ export function ScoreOverview({ analysis, diff, activeTab, auditFilter, onOpenTa
       />
       <ScoreCard
         label="AI context size"
+        description="How much an AI assistant must read to load this code"
         score={scores.totalTokens}
         delta={diff?.tokenDelta}
         suffix="tokens"
         isMetric
-        subtitle={`${plural(scores.totalFiles, 'module', 'modules')} · ${scores.totalLines.toLocaleString()} lines`}
+        subtitle={`${plural(scores.totalFiles, 'file', 'files')} · ${scores.totalLines.toLocaleString()} lines`}
         actionLabel="AGENTS.md"
         isActive={activeTab === 'blueprint'}
         onClick={() => onOpenTab('blueprint')}

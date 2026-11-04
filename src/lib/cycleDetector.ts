@@ -109,14 +109,14 @@ export function detectGraphCyclesAndInversions(
     archFindings.push({
       id: `arch-cycle-${[...comp].sort().join('::')}`,
       ruleId: 'ARCH-002',
-      title: `Circular Dependency Detected (${label})${extra}`,
+      title: `Import loop: ${label}${extra}`,
       category: 'architecture',
       severity: 'high',
       filePath: cycle[0],
       lineNumber: firstEdge?.line ?? 1,
       codeSnippet: [...cycle, cycle[0]].join(' -> '),
-      explanation: `${comp.length} modules import each other in a loop. Circular imports cause undefined initialization order, TDZ crashes in bundlers, and make modules impossible to test in isolation.`,
-      remediation: 'Extract the shared interfaces, constants, or domain logic into a lower-layer module (e.g. `types/` or `lib/`) that both sides import.',
+      explanation: `${comp.length} files depend on each other in a circle, so none of them can load first. This causes "cannot access before initialization" crashes, unpredictable load order, and files that cannot be tested on their own.`,
+      remediation: 'Move what both sides share (types, constants, small helpers) into a separate file that both import, so the arrows only point one way.',
       aiFixPrompt: `Break the circular dependency \`${[...cycle, cycle[0]].join(' -> ')}\` (ARCH-002) by extracting shared contracts into a lower-layer module.`,
     });
   });
@@ -136,14 +136,14 @@ export function detectGraphCyclesAndInversions(
     archFindings.push({
       id: `arch-inversion-${edge.from}-${edge.to}`,
       ruleId: 'ARCH-003',
-      title: `Upward Layer Inversion (\`${fromNode.layer}\` Layer Importing \`${toNode.layer}\`)`,
+      title: `Low-level file depends on a higher-level one (${fromNode.layer} → ${toNode.layer})`,
       category: 'architecture',
       severity: 'medium',
       filePath: edge.from,
       lineNumber: edge.line ?? 1,
       codeSnippet: `${edge.from} (${fromNode.layer}) -> ${edge.to} (${toNode.layer})`,
-      explanation: `Lower-level \`${fromNode.layer}\` module \`${fromNode.path}\` imports the higher-level \`${toNode.layer}\` module \`${toNode.path}\`, breaking one-way dependency flow.`,
-      remediation: 'Pass data or callbacks down via props/parameters instead of importing feature or service modules inside UI primitives or data schemas.',
+      explanation: `\`${fromNode.path}\` is a ${fromNode.layer} file, which should stay simple and reusable, yet it imports the ${toNode.layer} file \`${toNode.path}\`. Dependencies should point from high-level code down to low-level code, not back up.`,
+      remediation: 'Pass the data or callback in as a prop or parameter instead of importing the higher-level file directly.',
       aiFixPrompt: `Fix the upward layer inversion in \`${edge.from}\` (ARCH-003): remove the direct import of \`${edge.to}\` and invert the dependency via props or shared types.`,
     });
   }

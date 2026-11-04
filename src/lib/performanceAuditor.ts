@@ -27,16 +27,16 @@ export function runPerformanceAudit(files: RepoFileInput[]): AuditFinding[] {
       findings.push({
         id: `perf-${counter++}`,
         ruleId: 'PERF-001',
-        title: 'Root Route Opted Into Client Bundle ("use client" at Top Level)',
+        title: 'Whole page shipped to the browser ("use client" at the top)',
         category: 'performance',
         severity: 'high',
         filePath: file.path,
         lineNumber: 1,
         codeSnippet: lines.slice(0, 4).join('\n').trim(),
         explanation:
-          'Placing "use client" at the top of a large route or layout forces the entire subtree and its dependencies into the client JS bundle, hurting LCP and INP.',
+          'Putting "use client" at the top of a large page or layout sends all of it, and everything it imports, to the browser as JavaScript. Pages load and respond more slowly.',
         remediation:
-          'Keep the route/layout as a Server Component and extract only the interactive leaf widgets (modals, toggles, forms) into small client components.',
+          'Keep the page itself on the server and move only the interactive parts (forms, toggles, dialogs) into small "use client" components.',
         aiFixPrompt: `Refactor \`${file.path}\` (PERF-001): Remove top-level \`"use client"\` from the route shell and extract interactive state into focused leaf components under \`src/features/\`.`,
       });
     }
@@ -48,16 +48,16 @@ export function runPerformanceAudit(files: RepoFileInput[]): AuditFinding[] {
         findings.push({
           id: `perf-${counter++}`,
           ruleId: 'PERF-003',
-          title: `Barrel File Re-Exports ${wildcardExports.length} Modules (Tree-Shaking Killer)`,
+          title: `Index file re-exports ${wildcardExports.length} modules at once (slower builds)`,
           category: 'performance',
           severity: 'medium',
           filePath: file.path,
           lineNumber: 1,
           codeSnippet: lines.slice(0, 6).join('\n').trim(),
           explanation:
-            'Barrel files that wildcard re-export many modules force bundlers and test runners to parse the entire module graph even when a consumer imports a single utility.',
+            'This `index` file passes along everything from several modules with `export *`. Importing one small thing through it makes build tools and tests load all of them.',
           remediation:
-            'Import directly from concrete feature/component file paths instead of wildcard barrel index files.',
+            'Import from the specific file you need, or replace `export *` with named exports of what callers actually use.',
           aiFixPrompt: `Eliminate the wildcard barrel file \`${file.path}\` (PERF-003) and update consumers to import directly from the specific module paths.`,
         });
       }
@@ -85,16 +85,16 @@ export function runPerformanceAudit(files: RepoFileInput[]): AuditFinding[] {
         findings.push({
           id: `perf-${counter++}`,
           ruleId: 'PERF-002',
-          title: 'Sequential Network Waterfall (Consecutive Independent Awaits)',
+          title: 'Requests run one after another instead of together',
           category: 'performance',
           severity: 'high',
           filePath: file.path,
           lineNumber: i + 1,
           codeSnippet: `${line.trim()}\n${nextLine.trim()}`,
           explanation:
-            'Awaiting independent network or database requests sequentially doubles round-trip latency and blocks UI rendering.',
+            'Two requests that do not depend on each other are awaited one at a time, so the user waits for both in a row.',
           remediation:
-            'Execute independent requests concurrently using `const [a, b] = await Promise.all([reqA(), reqB()])`.',
+            'Start them together: `const [a, b] = await Promise.all([reqA(), reqB()])`.',
           aiFixPrompt: `Fix the sequential network waterfall in \`${file.path}\` at lines ${i + 1}-${i + 2} (PERF-002) by parallelizing the independent async calls with \`Promise.all\`.`,
         });
       }
@@ -109,20 +109,25 @@ export function runPerformanceAudit(files: RepoFileInput[]): AuditFinding[] {
       const dbCall = /\bawait\s+(?:supabase|db|prisma|knex|sql|pool|tx|trx|\w+\.(?:query|execute|findOne|findUnique|findFirst|findMany|from|select|insert|update|get_or_create)\s*\()/.test(loopWindow) ||
         /\b(?:session\.query|cursor\.execute|\.objects\.(?:get|filter))\(/.test(`${nextLine}\n${nextNextLine}`);
       const httpCall = /\bawait\s+(?:fetch|axios|ky|got)\b/.test(loopWindow);
-      if (((iteratesCollection && (dbCall || httpCall)) || (mapsAsync && dbCall)) && canEmit('PERF-004', file.path)) {
+      const sequentialLoop = iteratesCollection && (dbCall || httpCall);
+      if ((sequentialLoop || (mapsAsync && dbCall)) && canEmit('PERF-004', file.path)) {
+        // `Promise.all(items.map(async …))` still costs N round-trips but runs them concurrently.
+        const parallel = !sequentialLoop;
         findings.push({
           id: `perf-${counter++}`,
           ruleId: 'PERF-004',
-          title: 'N+1 Database / API Query Inside Loop',
+          title: parallel ? 'One database query per item (run in parallel)' : 'Database or API call inside a loop (N+1 queries)',
           category: 'performance',
-          severity: 'critical',
+          severity: parallel ? 'medium' : 'critical',
           filePath: file.path,
           lineNumber: i + 1,
           codeSnippet: lines.slice(i, i + 3).join('\n').trim(),
-          explanation:
-            'Executing an async database or HTTP request on every iteration of a loop causes N+1 query explosions as list sizes grow.',
-          remediation:
-            'Batch the IDs before the loop and fetch all matching records in a single `.in("id", ids)` query.',
+          explanation: parallel
+            ? 'Every item in the list sends its own database query. They run at the same time, but a list of 500 items still means 500 queries.'
+            : 'A request is made for every item in the loop, one after another. With 500 items that is 500 round-trips, and it gets slower as data grows.',
+          remediation: parallel
+            ? 'Where the rows share data, use one batched call (`updateMany`, `createMany`, `.in("id", ids)`); otherwise cap concurrency or wrap the per-row writes in a single transaction.'
+            : 'Batch the IDs before the loop and fetch all matching records in a single `.in("id", ids)` query.',
           aiFixPrompt: `Fix the N+1 query loop in \`${file.path}\` at line ${i + 1} (PERF-004) by collecting IDs and performing a single batched query outside the loop.`,
         });
       }
@@ -140,16 +145,16 @@ export function runPerformanceAudit(files: RepoFileInput[]): AuditFinding[] {
         findings.push({
           id: `perf-${counter++}`,
           ruleId: 'PERF-005',
-          title: 'Unbounded Table Query (`select("*")` Without Pagination/Limit)',
+          title: 'Query loads every row and column (no limit)',
           category: 'performance',
           severity: 'medium',
           filePath: file.path,
           lineNumber: i + 1,
           codeSnippet: line.trim(),
           explanation:
-            'Fetching all columns and rows without `.limit()` or `.range()` causes payload bloat and memory spikes as production tables grow.',
+            '`select("*")` without `.limit()` downloads the whole table. It feels fine with test data and becomes slow and memory-hungry as real data grows.',
           remediation:
-            'Select only required columns `.select("id, name, created_at")` and attach `.limit(50)` or cursor pagination.',
+            'Ask only for the columns you show, e.g. `.select("id, name, created_at")`, and page the results with `.limit(50)` or `.range()`.',
           aiFixPrompt: `Optimize the unbounded query in \`${file.path}\` at line ${i + 1} (PERF-005): specify explicit columns in \`.select()\` and enforce pagination with \`.limit()\`.`,
         });
       }
@@ -170,19 +175,19 @@ export function runPerformanceAudit(files: RepoFileInput[]): AuditFinding[] {
           id: `perf-${counter++}`,
           ruleId: 'PERF-006',
           title: file.path.endsWith('.rs')
-            ? 'Undocumented `unsafe` Block Without `// SAFETY:` Invariant'
-            : 'Hard CPU Busy-Wait (`mdelay`) Stalling Scheduler Core',
+            ? '`unsafe` block without a SAFETY note'
+            : 'Busy-wait that blocks a CPU core (`mdelay`)',
           category: 'performance',
           severity: file.path.endsWith('.rs') ? 'medium' : 'high',
           filePath: file.path,
           lineNumber: i + 1,
           codeSnippet: `${prevLine.trim()}\n${line.trim()}`.trim(),
           explanation: file.path.endsWith('.rs')
-            ? 'Using raw pointer or FFI `unsafe` blocks without an explicit `// SAFETY:` invariant comment obscures aliasing and lifetime guarantees.'
-            : 'Calling `mdelay()` spins the hardware CPU core in a tight busy-loop for milliseconds, starving other kernel threads and spiking latency.',
+            ? 'This `unsafe` block works with raw pointers or foreign code but does not explain why it is safe, so reviewers cannot check the assumptions it relies on.'
+            : '`mdelay()` keeps the CPU spinning for milliseconds doing nothing, so other work on that core has to wait.',
           remediation: file.path.endsWith('.rs')
-            ? 'Document the pointer validity and concurrency invariants in a `// SAFETY:` comment immediately above the `unsafe` block.'
-            : 'Replace `mdelay()` in non-atomic context with `usleep_range(min, max)` or `msleep()` so the scheduler can yield the CPU core.',
+            ? 'Add a `// SAFETY:` comment right above the block explaining why the pointers are valid and nothing else can change them meanwhile.'
+            : 'Where sleeping is allowed, use `usleep_range(min, max)` or `msleep()` so the CPU can do other work while waiting.',
           aiFixPrompt: `Resolve PERF-006 in \`${file.path}\` at line ${i + 1}: replace busy-wait \`mdelay()\` with yielding sleep or document the \`// SAFETY:\` invariant on the \`unsafe\` block.`,
         });
       }

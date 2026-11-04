@@ -11,11 +11,19 @@ const SAFE_PAT_PATTERN = /^(gh[pousr]_[A-Za-z0-9_]{16,255}|github_pat_[A-Za-z0-9
 const MAX_CLOSURE_FILES = 12;
 const PRIORITY_ROOT_DIRS = ['src', 'app', 'kernel', 'init', 'mm', 'rust', 'security', 'ipc', 'packages', 'crates', 'lib', 'cmd', 'server'];
 
+/** Plain-language note on how much of the repository was read. */
+function scanNote(scanned: number, available: number, forcedSample: boolean, isPrivate: boolean): string {
+  const priv = isPrivate ? ' (private repository)' : '';
+  if (available > scanned) return `Scanned ${scanned} of ${available.toLocaleString()} source files${priv}, picking the most connected ones.`;
+  if (forcedSample) return `Scanned a sample of ${scanned} key source files${priv}; the repository is too large to read in full.`;
+  return `Scanned all ${scanned} source files${priv}.`;
+}
+
 export function validateGitHubToken(rawToken?: string): string | undefined {
   if (!rawToken || !rawToken.trim()) return undefined;
   const trimmed = rawToken.trim();
   if (/[\r\n\0]/.test(trimmed) || !SAFE_PAT_PATTERN.test(trimmed)) {
-    throw new Error('Invalid GitHub PAT format. Expected fine-grained (github_pat_...) or classic (ghp_...).');
+    throw new Error('That doesn’t look like a GitHub access token. Tokens start with "github_pat_" (fine-grained) or "ghp_" (classic).');
   }
   return trimmed;
 }
@@ -48,13 +56,13 @@ async function fetchGitHubSafe(url: string, token?: string, acceptRaw = false, t
 export function parseGitHubInput(repoInput: string): { owner: string; repo: string; branchHint?: string; subpath?: string } {
   const cleaned = repoInput.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/i, '').split(/[?#]/)[0].replace(/\/$/, '');
   if (cleaned.includes('..') || /[\0\r\n\\]/.test(cleaned)) {
-    throw new Error('Invalid repository path: path traversal segments are not allowed.');
+    throw new Error('That repository address isn’t valid. Use the form owner/repo, for example vercel/next.js.');
   }
   const parts = cleaned.split('/').filter(Boolean);
-  if (parts.length < 2) throw new Error('Enter a valid GitHub repository (e.g. "owner/repo" or "owner/repo/subpath").');
+  if (parts.length < 2) throw new Error('Enter a GitHub repository as owner/repo (for example vercel/next.js) or paste its github.com link.');
   const [owner, repo, ...rest] = parts;
   if (!SAFE_SLUG_SEGMENT.test(owner) || !SAFE_SLUG_SEGMENT.test(repo)) {
-    throw new Error('Invalid repository owner or name format. Use alphanumeric "owner/repo".');
+    throw new Error('That repository name has characters GitHub doesn’t allow. Use the form owner/repo, for example vercel/next.js.');
   }
   if (rest[0] === 'tree' || rest[0] === 'blob') {
     return { owner, repo, branchHint: rest[1], subpath: rest.slice(2).join('/') || undefined };
@@ -87,23 +95,28 @@ export async function fetchGitHubRepoFiles(
     repoSize = meta.size ?? 0;
   } else if ((metaRes.status === 403 || metaRes.status === 429) && !token) {
     const fb = await fetchPublicFallbackTreeOrFiles(owner, repo, branchHint, subpath, isAnalyzablePath, selectStratifiedPaths);
-    if (!fb) throw new Error(`GitHub API rate limit reached for "${owner}/${repo}". Provide a PAT via "Private Repo" for 5,000 req/hr.`);
+    if (!fb) throw new Error(`GitHub is limiting how many repositories can be read without signing in (about 60 requests an hour). Wait a bit, or add a free read-only access token under "Private repository" to keep going.`);
     const fbBranch = encodeURIComponent(fb.branch);
     const files = fb.preloadedFiles ?? (await downloadSelectedFiles(encOwner, encRepo, fbBranch, fb.candidatePaths));
     const extra = fb.preloadedFiles ? [] : missingImportTargets(files, fb.pool ?? [], MAX_CLOSURE_FILES);
     if (extra.length) files.push(...(await downloadSelectedFiles(encOwner, encRepo, fbBranch, extra.map((path) => ({ path })))));
     const displaySlug = subpath ? `${fullName}/${subpath}` : fullName;
-    const modeNote = `Stratified architectural sample (${files.length} modules).`;
+    const modeNote = scanNote(files.length, fb.pool?.length ?? 0, !fb.pool, false);
     return { repoName: displaySlug, description: fb.description ? `${fb.description} — ${modeNote}` : modeNote, files, isPrivate: false };
   } else {
-    const hint = metaRes.status === 404 && !token ? ' If private, click "Private Repo" to provide a read-only PAT.' : '';
-    throw new Error(`GitHub repository "${owner}/${repo}" not found or rate-limited (HTTP ${metaRes.status}).${hint}`);
+    if (metaRes.status === 404) {
+      const hint = token ? ' Check the spelling, and that your token can read it.' : ' Check the spelling. If it is private, add a read-only access token under "Private repository".';
+      throw new Error(`Couldn’t find "${owner}/${repo}" on GitHub.${hint}`);
+    }
+    if (metaRes.status === 401) throw new Error('GitHub rejected the access token. It may have expired or been revoked; create a new read-only token and try again.');
+    if (metaRes.status === 403 || metaRes.status === 429) throw new Error('GitHub is limiting requests for this token right now. Wait a few minutes and try again.');
+    throw new Error(`GitHub didn’t respond normally (error ${metaRes.status}). Try again in a moment.`);
   }
 
   const encBranch = encodeURIComponent(branch);
   let candidatePaths: Array<{ path: string }> = [];
   let pool: string[] = [];
-  let isStratifiedSample = repoSize > 300_000;
+  let isStratifiedSample = repoSize > 300_000; // huge repo: only priority folders are listed
 
   if (subpath) {
     // `<branch>:<path>` is a valid tree-ish, giving a recursive listing of just this folder.
@@ -164,13 +177,13 @@ export async function fetchGitHubRepoFiles(
     }
   }
 
-  if (candidatePaths.length === 0) throw new Error('No supported source code files (.ts, .js, .py, .rs, .c, .h, .go, .swift, .kt) found.');
+  if (candidatePaths.length === 0) throw new Error('No source code RepoAtlas can read was found here. It supports TypeScript, JavaScript, Python, Go, Rust, C/C++, Swift and Kotlin files.');
   const validFiles = await downloadSelectedFiles(encOwner, encRepo, encBranch, candidatePaths, token);
   // Pull in the hub modules the sample imports but missed (shared headers, utils, base classes).
   const extra = missingImportTargets(validFiles, pool, MAX_CLOSURE_FILES);
   if (extra.length) validFiles.push(...(await downloadSelectedFiles(encOwner, encRepo, encBranch, extra.map((path) => ({ path })), token)));
   const displaySlug = subpath ? `${fullName}/${subpath}` : fullName;
-  const modeNote = isStratifiedSample ? `Stratified architectural sample (${validFiles.length} modules).` : `${validFiles.length} source modules inspected${isPrivate ? ' (Private Repo)' : ''}.`;
+  const modeNote = scanNote(validFiles.length, pool.length, isStratifiedSample, isPrivate);
   return { repoName: displaySlug, description: descriptionText ? `${descriptionText} — ${modeNote}` : modeNote, files: validFiles, isPrivate };
 }
 

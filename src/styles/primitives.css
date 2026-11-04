@@ -19,6 +19,7 @@
 .divider-b { border-bottom: 1px solid var(--border-hairline); }
 .divider-t { border-top: 1px solid var(--border-hairline); }
 
+.text-primary { color: var(--text-primary); }
 .text-secondary { color: var(--text-secondary); }
 .text-muted { color: var(--text-muted); }
 .text-accent { color: var(--accent-brand); }

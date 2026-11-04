@@ -3,6 +3,7 @@ import { Check, ChevronRight, Code2, Copy, Search, ShieldCheck } from 'lucide-re
 import { AuditCategory, AuditFinding, AuditSeverity } from '../../types/atlas';
 import { SeverityBadge } from '../../components/ui/SeverityBadge';
 import { copyTextSafe } from '../../lib/clipboard';
+import { InlineCodeText } from '../../components/ui/InlineCodeText';
 
 interface AuditTableProps {
   findings: AuditFinding[];
@@ -53,6 +54,13 @@ export function AuditTable({ findings, initialFilter = 'all', onSelectFilePath }
 
   return (
     <div className="atlas-panel-animate surface">
+      <div className="px-4 pt-3.5 pb-3 divider-b space-y-0.5">
+        <h2 className="heading-section">Findings</h2>
+        <p className="text-[0.75rem] text-muted measure-readable">
+          Problems spotted in the code, most serious first. Open one to see why it matters, how to fix it, and a ready-made prompt for
+          your AI assistant.
+        </p>
+      </div>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 divider-b">
         <div className="segmented segmented-sm self-start" role="group" aria-label="Filter by category">
           {FILTERS.map(([cat, label]) => (
@@ -118,19 +126,22 @@ export function AuditTable({ findings, initialFilter = 'all', onSelectFilePath }
                 <div id={panelId} className="disclosure-panel" data-open={isOpen} inert={!isOpen}>
                   <div>
                     <div className="px-4 pb-4 md:pl-[calc(5.5rem+1.75rem)] space-y-3">
-                      <p className="text-[0.8125rem] text-secondary measure-readable">{f.explanation}</p>
+                      <div className="measure-readable">
+                        <p className="eyebrow mb-1">Why it matters</p>
+                        <p className="text-[0.8125rem] text-secondary"><InlineCodeText text={f.explanation} /></p>
+                      </div>
                       <div className="surface-quiet px-3 py-2.5 measure-readable">
-                        <p className="eyebrow mb-1">Fix</p>
-                        <p className="text-[0.8125rem]">{f.remediation}</p>
+                        <p className="eyebrow mb-1">How to fix</p>
+                        <p className="text-[0.8125rem]"><InlineCodeText text={f.remediation} /></p>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         <button type="button" onClick={() => onSelectFilePath(f.filePath)} className="btn btn-secondary btn-sm">
                           <Code2 size={13} strokeWidth={1.75} aria-hidden="true" />
                           Open file
                         </button>
-                        <button type="button" onClick={() => void handleCopyPrompt(f)} className="btn btn-ghost btn-sm" aria-label={`Copy AI fix prompt for ${f.ruleId}`}>
+                        <button type="button" onClick={() => void handleCopyPrompt(f)} className="btn btn-ghost btn-sm" aria-label={`Copy AI fix prompt for ${f.ruleId}`} title="Paste into Claude, Cursor, Copilot or another AI coding assistant">
                           {copiedId === f.id ? <Check size={13} strokeWidth={1.75} className="tone-success tone-text" aria-hidden="true" /> : <Copy size={13} strokeWidth={1.75} aria-hidden="true" />}
-                          {copiedId === f.id ? 'Copied' : 'Copy fix prompt'}
+                          {copiedId === f.id ? 'Copied' : 'Copy prompt for AI'}
                         </button>
                       </div>
                     </div>

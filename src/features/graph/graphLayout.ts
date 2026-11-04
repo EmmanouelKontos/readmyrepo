@@ -8,14 +8,16 @@ export interface NodeBox {
   node: RepoNode;
 }
 
-export const LAYER_ORDER: { key: ArchitecturalLayer; label: string }[] = [
-  { key: 'entry', label: 'Entry' },
-  { key: 'feature', label: 'Features' },
-  { key: 'ui', label: 'UI' },
-  { key: 'service', label: 'Services' },
-  { key: 'data', label: 'Types & data' },
-  { key: 'config', label: 'Config' },
+export const LAYER_ORDER: { key: ArchitecturalLayer; label: string; description: string }[] = [
+  { key: 'entry', label: 'Entry', description: 'Where the app starts: pages, routes, main files' },
+  { key: 'feature', label: 'Features', description: 'Screens and components for one part of the product' },
+  { key: 'ui', label: 'UI', description: 'Reusable building blocks such as buttons and inputs' },
+  { key: 'service', label: 'Logic', description: 'Business logic, helpers and data access' },
+  { key: 'data', label: 'Types & data', description: 'Type definitions, schemas, models and headers' },
+  { key: 'config', label: 'Config', description: 'Settings and manifests' },
 ];
+
+export const LAYER_INFO = Object.fromEntries(LAYER_ORDER.map((l) => [l.key, l])) as Record<ArchitecturalLayer, (typeof LAYER_ORDER)[number]>;
 
 export const GRAPH_WIDTH = 1080;
 const SIDE_PAD = 16;
@@ -51,7 +53,7 @@ export function computeGraphLayout(nodes: RepoNode[]) {
   const cardW = Math.round(Math.min(200, subColW - 20));
 
   const coords = new Map<string, NodeBox>();
-  const lanes: Array<{ key: ArchitecturalLayer; label: string; x: number; width: number; count: number }> = [];
+  const lanes: Array<{ key: ArchitecturalLayer; label: string; description: string; x: number; width: number; count: number }> = [];
   let laneX = SIDE_PAD;
   activeLayers.forEach((layer, i) => {
     const laneW = subColW * subCols[i];

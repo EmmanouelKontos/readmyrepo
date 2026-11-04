@@ -1,11 +1,50 @@
 import { AuditFinding, RepoFileInput } from '../types/atlas';
 import { isCommentLine } from './graphMetrics';
 
+/** Base64url → JSON payload of a JWT, or null. */
+function jwtPayload(segment: string): Record<string, unknown> | null {
+  try {
+    const b64 = segment.replace(/-/g, '+').replace(/_/g, '/');
+    const parsed: unknown = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)));
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A hardcoded JWT is only a leak when it grants privileges: Supabase `anon` keys are public by design,
+ * `service_role` (or any non-anon role) bypasses Row-Level Security.
+ */
+function hasPrivilegedJwt(line: string): boolean {
+  for (const m of line.matchAll(/\beyJ[A-Za-z0-9_-]{10,}\.(eyJ[A-Za-z0-9_-]{10,})(?:\.[A-Za-z0-9_-]*)?/g)) {
+    const role = jwtPayload(m[1])?.role;
+    if (typeof role === 'string' && role !== 'anon' && role !== 'authenticated') return true;
+  }
+  return false;
+}
+
+/** Tags that turn `${}` into bound parameters (Prisma, postgres.js, Drizzle, Slonik, @vercel/postgres…). */
+const PARAMETERIZING_TAG = /(?:\$queryRaw|\$executeRaw|\bPrisma\.sql|\bsql(?:\.query)?|\bdb\.sql|\bpsql)\s*(?:<[^>]*>)?\s*$/;
+/** Interpolations that build query *structure* (placeholder lists, column lists) rather than values. */
+const STRUCTURAL_PART = /(placeholders?|columns?|fields?|clause|conditions?|where|order(by)?|direction|sort|limit|offset|table(name)?|schema|alias|select(ion)?)$/i;
+
+function isSafeSqlTemplate(line: string, before: string): boolean {
+  const firstInterp = line.indexOf('${');
+  const text = `${before}\n${line.slice(0, Math.max(0, firstInterp))}`;
+  const tick = text.lastIndexOf('`');
+  if (tick >= 0 && PARAMETERIZING_TAG.test(text.slice(0, tick)) && !/Unsafe\s*\(?\s*$/.test(text.slice(0, tick))) return true;
+  // `IN (${placeholders}) AND projectId = ?` — only structure is interpolated, values are bound separately
+  const parts = [...line.matchAll(/\$\{([a-zA-Z0-9_.]+)\}/g)].map((m) => m[1].split('.').pop() ?? '');
+  return /\?|\$\d/.test(line) && parts.length > 0 && parts.every((p) => STRUCTURAL_PART.test(p));
+}
+
 interface SecurityRule {
   ruleId: string;
   title: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
-  testLine: (line: string, filePath: string, fullContent: string) => boolean;
+  /** `before` holds the preceding lines (up to 6), for rules that need statement context. */
+  testLine: (line: string, filePath: string, fullContent: string, before: string) => boolean;
   explanation: string;
   remediation: string;
 }
@@ -13,73 +52,82 @@ interface SecurityRule {
 const SECURITY_RULES: SecurityRule[] = [
   {
     ruleId: 'SEC-001',
-    title: 'Hardcoded API Key or Service-Role Secret in Source',
+    title: 'Secret key written directly in the code',
     severity: 'critical',
     testLine: (line) =>
-      /(sk-[a-zA-Z0-9_-]{12,}|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[a-zA-Z0-9_-]{10,}|AIzaSy[a-zA-Z0-9_-]{20,}|SERVICE_ROLE_KEY\s*=\s*['"][^'"]+['"])/.test(
-        line
-      ),
+      // OpenAI/Stripe-style keys (word-bounded, so `risk-assessment-…` never matches), Google API keys,
+      // privileged JWTs, or a literal assigned to a *_SERVICE_ROLE_KEY variable.
+      /(?<![\w-])(?:sk|rk)-(?:proj-|live-|test-)?(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{20,}/.test(line) ||
+      /\bAIzaSy[A-Za-z0-9_-]{30,}/.test(line) ||
+      /\b(?:sk|rk)_live_[A-Za-z0-9]{20,}|\bgh[pousr]_[A-Za-z0-9]{36}\b|\bgithub_pat_[A-Za-z0-9_]{60,}|\bAKIA[0-9A-Z]{16}\b|-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/.test(line) ||
+      hasPrivilegedJwt(line) ||
+      /SERVICE_ROLE_KEY\s*[:=]\s*['"][^'"]{8,}['"]/.test(line),
     explanation:
-      'Hardcoded credentials or JWT service-role keys committed in source code can be extracted from client bundles or git history, granting full database or billing access.',
+      'A private key or password is stored in the source code. Anyone who can see the code, the git history or the shipped JavaScript can copy it and use your account, database or billing.',
     remediation:
-      'Move secrets to server-only environment variables (.env.local), rotate the leaked key immediately, and read via process.env on the server only.',
+      'Move the secret into a server-only environment variable (for example `.env.local`), read it with `process.env` on the server, and rotate the leaked key now: it should be considered public.',
   },
   {
     ruleId: 'SEC-002',
-    title: 'Privileged Secret Exposed via Client Prefix (NEXT_PUBLIC_ / VITE_)',
+    title: 'Private key exposed to the browser (NEXT_PUBLIC_ / VITE_ prefix)',
     severity: 'critical',
     testLine: (line) =>
       /(NEXT_PUBLIC_|VITE_)[A-Z0-9_]*(SECRET|PRIVATE|SERVICE_ROLE|ADMIN_KEY|DATABASE_URL)/.test(
         line
       ),
     explanation:
-      'Variables prefixed with NEXT_PUBLIC_ or VITE_ are statically inlined into the public browser JavaScript bundle, exposing backend secrets to every visitor.',
+      'Variables starting with NEXT_PUBLIC_ or VITE_ are copied into the JavaScript every visitor downloads. A secret, admin key or database URL with that prefix is readable by anyone.',
     remediation:
-      'Remove the NEXT_PUBLIC_ or VITE_ prefix and move all privileged calls behind a server route handler or Edge Function.',
+      'Remove the public prefix and only use the value on the server, behind an API route or Edge Function. Rotate the key if it was ever deployed.',
   },
   {
     ruleId: 'SEC-003',
-    title: 'Unsanitized HTML Injection / DOM XSS Vector',
+    title: 'Raw HTML inserted into the page (XSS risk)',
     severity: 'high',
-    testLine: (line, _path, full) =>
+    testLine: (line, _path, full, before) =>
+      // A lint suppression right above (`eslint-disable-next-line react/no-danger`, oxlint, biome-ignore)
+      // marks a sink the authors already reviewed; JSON.stringify payloads are the standard JSON-LD pattern.
+      !/(?:eslint|oxlint)-disable-next-line[^\n]*(?:no-danger|no-inner-html|innerhtml)|biome-ignore[^\n]*noDangerouslySetInnerHtml/i.test(before.split('\n').slice(-2).join('\n')) &&
+      !/__html\s*:\s*JSON\.stringify\(/.test(line) &&
       (/dangerouslySetInnerHTML\s*=\s*\{/.test(line) ||
         // assigning a static literal (`el.innerHTML = ''`) cannot inject anything
         (/\.innerHTML\s*=\s*[^=]/.test(line) && !/\.innerHTML\s*=\s*(?:(['"])[^'"]*\1|`[^`$]*`)\s*;?\s*$/.test(line))) &&
-      !full.includes('DOMPurify.sanitize'),
+      !/DOMPurify\.sanitize|sanitizeHtml\(|sanitize-html|from ['"]xss['"]/.test(full),
     explanation:
-      'Rendering raw HTML strings without a strict sanitizer allows attacker-controlled scripts to execute in the user session (Cross-Site Scripting).',
+      'HTML is put into the page without being cleaned first. If any of it can come from a user, an attacker can run their own script in your visitors\' browsers (cross-site scripting).',
     remediation:
-      'Sanitize HTML through DOMPurify.sanitize(html) before rendering or replace raw HTML injection with structured React nodes.',
+      'Clean the HTML with `DOMPurify.sanitize(html)` first, or render the content as normal React elements instead of raw HTML.',
   },
   {
     ruleId: 'SEC-004',
-    title: 'Raw SQL String Interpolation (SQL Injection Risk)',
+    title: 'Database query built from raw values (SQL injection risk)',
     severity: 'critical',
-    testLine: (line) =>
+    testLine: (line, _path, _full, before) =>
       // Require real SQL statement shape (SELECT…FROM, INSERT INTO, UPDATE…SET, DELETE FROM) so
       // strings like `select-none ${className}` or "update ${count} items" are not flagged.
-      /\b(SELECT\b[^;]*?\bFROM|INSERT\s+INTO|UPDATE\s+[\w."`]+\s+SET|DELETE\s+FROM)\b[^;]*\$\{[a-zA-Z0-9_.]+\}/i.test(line) ||
+      (/\b(SELECT\b[^;]*?\bFROM|INSERT\s+INTO|UPDATE\s+[\w."`]+\s+SET|DELETE\s+FROM)\b[^;]*\$\{[a-zA-Z0-9_.]+\}/i.test(line) &&
+        !isSafeSqlTemplate(line, before)) ||
       /\bf["'](SELECT\b.*?\bFROM|INSERT\s+INTO|UPDATE\s+\S+\s+SET|DELETE\s+FROM)\b.*\{.+\}/i.test(line),
     explanation:
-      'Interpolating user variables directly into SQL strings allows attackers to bypass authentication or exfiltrate tables via SQL injection.',
+      'Values are pasted straight into a SQL string. A crafted value can change the query itself, letting an attacker read or delete data they should never reach.',
     remediation:
-      'Use parameterized queries ($1, $2 or ? placeholders) or type-safe query builders (Supabase client / Drizzle / Prisma).',
+      'Pass values as parameters (`$1`, `?`, or a tagged template such as Prisma\'s `$queryRaw`) or use the Supabase / Drizzle / Prisma query builder.',
   },
   {
     ruleId: 'SEC-005',
-    title: 'Wildcard CORS Header on API Endpoint',
+    title: 'API open to every website (wildcard CORS)',
     severity: 'medium',
     testLine: (line, path) =>
       (path.includes('api/') || path.includes('route.') || path.includes('server')) &&
       /['"]Access-Control-Allow-Origin['"]\s*:\s*['"]\*['"]/.test(line),
     explanation:
-      'Permitting wildcard (*) origins on API routes allows arbitrary third-party websites to read responses or trigger actions from browsers.',
+      '`Access-Control-Allow-Origin: *` lets any website call this API from a visitor\'s browser and read the response.',
     remediation:
-      'Restrict Access-Control-Allow-Origin to explicit trusted origins and validate session authentication tokens.',
+      'List the exact sites that may call the API instead of `*`, and keep checking the user\'s session on every request.',
   },
   {
     ruleId: 'SEC-006',
-    title: 'Unbounded C/C++ String Copy (Buffer Overflow Vector)',
+    title: 'Unlimited string copy in C (buffer overflow risk)',
     severity: 'critical',
     testLine: (line, path) =>
       /\.(c|h|cpp|hpp|cc)$/.test(path) &&
@@ -89,32 +137,32 @@ const SECURITY_RULES: SecurityRule[] = [
       // prototypes / macros that *declare* or ban the function (`int sprintf(char *str, …) __attribute__((deprecated))`)
       !/^\s*(?:#\s*(?:define|undef)\b|(?:extern\s+)?(?:int|char|void|size_t|ssize_t)\s*\*?\s*(?:strcpy|strcat|sprintf|vsprintf|gets)\s*\()/.test(line),
     explanation:
-      'Unbounded C string functions write past destination buffer boundaries when input length exceeds allocation, causing kernel panics, heap corruption, or privilege escalation.',
+      'This C function copies text without checking how much room the destination has. Longer input than expected overwrites nearby memory, which can crash the program or let an attacker take control.',
     remediation:
-      'Replace strcpy/strcat/sprintf with bounded kernel/libc equivalents such as strscpy(dst, src, sizeof(dst)) or snprintf(dst, sizeof(dst), fmt, ...).',
+      'Use a size-limited version such as `strscpy(dst, src, sizeof(dst))` or `snprintf(dst, sizeof(dst), fmt, ...)`.',
   },
   {
     ruleId: 'SEC-007',
-    title: 'Overly Broad Chrome Extension MV3 Host Permission (<all_urls>)',
+    title: 'Extension asks to access every website',
     severity: 'high',
     testLine: (line, path) =>
       path.endsWith('manifest.json') && /("<all_urls>"|"\*:\/\/\*\/\*")/.test(line),
     explanation:
-      'Requesting <all_urls> or *://*/* in Manifest V3 grants content-script or host access to every website the user visits, triggering manual Chrome Web Store security review delays.',
+      'Requesting `<all_urls>` or `*://*/*` lets the extension read and change every page the user visits. Users and the Chrome Web Store review treat this as a major risk.',
     remediation:
-      'Replace <all_urls> with the "activeTab" permission or scope "host_permissions" to explicit target domains.',
+      'Use the `activeTab` permission, or list only the sites the extension really needs under `host_permissions`.',
   },
   {
     ruleId: 'SEC-008',
-    title: 'Disabled Desktop Webview CSP or Unsandboxed IPC (Tauri / Electron)',
+    title: 'Desktop app safety setting turned off (CSP / Node access)',
     severity: 'high',
     testLine: (line, path) =>
       (path.endsWith('tauri.conf.json') && /"csp"\s*:\s*null/.test(line)) ||
       (/\.(ts|js)$/.test(path) && /(nodeIntegration\s*:\s*true|contextIsolation\s*:\s*false)/.test(line)),
     explanation:
-      'Setting "csp": null in Tauri or enabling nodeIntegration in Electron allows any renderer XSS injection to invoke privileged native Rust/Node OS commands directly.',
+      'With `"csp": null` in Tauri, or `nodeIntegration` / no context isolation in Electron, a single injected script in the app window can run commands on the user\'s computer.',
     remediation:
-      'Configure a strict Content-Security-Policy in tauri.conf.json ("default-src \'self\'") and enforce contextIsolation: true in Electron.',
+      'Set a strict Content-Security-Policy in tauri.conf.json (for example `default-src \'self\'`) and keep `contextIsolation: true` in Electron.',
   },
 ];
 
@@ -131,7 +179,7 @@ export function runSecurityAudit(files: RepoFileInput[]): AuditFinding[] {
       for (const rule of SECURITY_RULES) {
         const dedupKey = `${rule.ruleId}::${file.path}`;
         if (seenRulePerFile.has(dedupKey)) continue;
-        if (rule.testLine(line, file.path, file.content)) {
+        if (rule.testLine(line, file.path, file.content, lines.slice(Math.max(0, i - 6), i).join('\n'))) {
           seenRulePerFile.add(dedupKey);
           const lineNumber = i + 1;
           const snippet = lines

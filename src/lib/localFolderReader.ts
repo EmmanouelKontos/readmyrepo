@@ -19,7 +19,7 @@ export async function readLocalDirectoryFiles(
 
   const selected = selectStratifiedPaths(candidates, 45);
   if (selected.length === 0) {
-    throw new Error('No analyzable source files found in the selected folder.');
+    throw new Error('That folder has no source code RepoAtlas can read (TypeScript, JavaScript, Python, Go, Rust, C/C++, Swift or Kotlin).');
   }
 
   const files = await Promise.all(

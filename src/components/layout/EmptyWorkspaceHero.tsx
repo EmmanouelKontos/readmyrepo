@@ -15,9 +15,9 @@ interface EmptyWorkspaceHeroProps {
 const EXAMPLES = ['torvalds/linux', 'colinhacks/zod', 'shadcn-ui/ui', 'tauri-apps/tauri', 'facebook/react'];
 
 const FEATURES = [
-  { Icon: Layers, title: 'Dependency map', body: 'Imports across TS/JS, Python, Go, Rust, C, Chrome extensions and Tauri apps, grouped by layer.' },
-  { Icon: ListChecks, title: 'Findings', body: 'Leaked secrets, unsafe HTML, N+1 queries, cycles and oversized modules, each with a fix.' },
-  { Icon: Sparkles, title: 'AI context', body: 'A ready-to-commit AGENTS.md and a single prompt to fix everything that was found.' },
+  { Icon: Layers, title: 'Dependency map', body: 'See which files use which, for TypeScript, Python, Go, Rust, C, Chrome extensions and desktop apps.' },
+  { Icon: ListChecks, title: 'Findings', body: 'Leaked keys, unsafe code, slow database patterns and tangled files, each explained with a fix.' },
+  { Icon: Sparkles, title: 'AI context', body: 'A guide file for AI coding assistants, plus one prompt that fixes everything found.' },
 ];
 
 export function EmptyWorkspaceHero({
@@ -49,8 +49,8 @@ export function EmptyWorkspaceHero({
             See how a codebase fits together
           </h1>
           <p className="text-secondary text-[0.9375rem] max-w-[34rem] mx-auto">
-            Paste a GitHub repository to get its dependency map, security and performance findings, and an AGENTS.md
-            for your AI tools. Everything runs in your browser.
+            Paste a GitHub repository to see how its files connect, what could be risky or slow, and how to fix it,
+            with a ready-made guide for your AI coding assistant. Your code never leaves your browser.
           </p>
         </div>
 
@@ -101,7 +101,8 @@ export function EmptyWorkspaceHero({
             <div className="flex items-start gap-2.5 text-[0.8125rem] text-secondary">
               <ShieldCheck size={16} strokeWidth={1.75} className="tone-success tone-text shrink-0 mt-0.5" aria-hidden="true" />
               <p>
-                Use a read-only fine-grained token. It stays in memory for this tab only and is sent to{' '}
+                To read a private repository, paste a GitHub access token with read-only access (create one in GitHub under
+                Settings → Developer settings → Fine-grained tokens). It stays in this tab only and is sent to{' '}
                 <span className="code-inline">api.github.com</span> and nowhere else.
               </p>
             </div>

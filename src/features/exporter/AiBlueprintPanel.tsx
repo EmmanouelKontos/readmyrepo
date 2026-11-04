@@ -86,10 +86,11 @@ export function AiBlueprintPanel({
   return (
     <div className="atlas-panel-animate space-y-5">
       <div className="space-y-1">
-        <h2 className="text-base font-semibold tracking-tight">AI handoff</h2>
+        <h2 className="text-base font-semibold tracking-tight">Hand this project to an AI assistant</h2>
         <p className="text-secondary measure-readable">
-          Add <code className="code-inline">AGENTS.md</code> to the repo root, then paste the fix prompt into your
-          coding agent.
+          Save <code className="code-inline">AGENTS.md</code> in the top folder of your project so AI coding assistants (Claude Code,
+          Cursor, Copilot and others) understand how it is organised. Then paste the fix prompt into the assistant to work through
+          every problem found.
         </p>
       </div>
 
@@ -99,7 +100,7 @@ export function AiBlueprintPanel({
           title={<span className="font-mono-code">AGENTS.md</span>}
           description={
             <>
-              Layer boundaries and file responsibilities for <span className="font-medium">{repoName}</span>.
+              Project guide for <span className="font-medium">{repoName}</span>: what each part does and the rules to keep it tidy.
             </>
           }
           bodyLabel="Generated AGENTS.md"
@@ -126,7 +127,7 @@ export function AiBlueprintPanel({
         <BlueprintCard
           icon={<Terminal {...ICON_PROPS} />}
           title="Fix prompt"
-          description="Every flagged issue, ordered by severity, in one prompt."
+          description="One message listing every problem, most serious first, with what to change."
           bodyLabel="Fix prompt"
           body={masterFixPrompt}
           actions={

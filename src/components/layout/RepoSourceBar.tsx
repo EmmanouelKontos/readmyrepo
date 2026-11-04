@@ -118,7 +118,8 @@ export function RepoSourceBar({
 
       <div hidden={!showToken} className="atlas-collapsible surface p-3 flex flex-col md:flex-row md:items-center gap-3">
         <p className="flex-1 text-[0.8125rem] text-secondary">
-          Read-only token, kept in memory for this tab and sent only to <span className="code-inline">api.github.com</span>.
+          GitHub access token for private repositories (read-only is enough). It stays in this tab and is sent only to{' '}
+          <span className="code-inline">api.github.com</span>.
         </p>
         <label htmlFor={patInputId} className="visually-hidden">GitHub personal access token</label>
         <div className="field md:w-72">

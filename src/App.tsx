@@ -11,7 +11,7 @@ import { ArchitectureMap } from './features/graph/ArchitectureMap';
 import { AuditTable } from './features/audit/AuditTable';
 import { AiBlueprintPanel } from './features/exporter/AiBlueprintPanel';
 import { CodeInspectorModal } from './features/inspector/CodeInspectorModal';
-import { useUrlWorkspaceState } from './hooks/useUrlWorkspaceState';
+import { useDocumentTitle, useUrlWorkspaceState } from './hooks/useUrlWorkspaceState';
 import { analyzeRepository } from './lib/analyzer';
 import { fetchGitHubRepoFiles } from './lib/githubFetcher';
 import { readLocalDirectoryFiles } from './lib/localFolderReader';
@@ -40,22 +40,21 @@ export function App() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const workspaceRef = useRef<HTMLElement>(null);
 
-  const { activePresetId, setActivePresetId, activeTab, setActiveTab, auditFilter, setAuditFilter } =
-    useUrlWorkspaceState(
-      customResult?.repoName ?? (PRESET_REPOSITORIES.find((p) => p.id === window.location.search)?.name ?? null),
-      customResult?.findings.length ?? 0
-    );
+  const [sharedRepo, setSharedRepo] = useState<string | null>(null);
+  const { initialRepo, activePresetId, setActivePresetId, activeTab, setActiveTab, auditFilter, setAuditFilter } =
+    useUrlWorkspaceState(customResult ? sharedRepo : null);
 
   const presetAnalysis = useMemo(() => {
     if (!activePresetId) return null;
     const preset = PRESET_REPOSITORIES.find((p) => p.id === activePresetId);
     if (!preset) return null;
     const files = presetOverrides[preset.id] ?? preset.files;
-    const label = presetOverrides[preset.id] ? 'Live Refactored Sandbox' : 'Reference Sandbox';
+    const label = presetOverrides[preset.id] ? 'Example · with your edits' : 'Example project';
     return analyzeRepository(preset.name, preset.description, label, files, { repoSlug: preset.slug, stackTags: preset.stackTags });
   }, [activePresetId, presetOverrides]);
 
   const analysis = customResult ?? presetAnalysis;
+  useDocumentTitle(analysis?.repoName ?? null, activeTab, analysis?.findings.length ?? 0);
   const isCurrentPinned = analysis ? isProjectPinned(analysis.repoSlug, pinnedProjects) : false;
   const inspectedNode = useMemo(
     () => (analysis && inspectedPath ? analysis.nodes.find((n) => n.path === inspectedPath) ?? null : null),
@@ -75,8 +74,8 @@ export function App() {
   }, [analysis, activePresetId, customResult]);
 
   useEffect(() => {
-    const repoParam = new URLSearchParams(window.location.search).get('repo');
-    if (repoParam) void handleAnalyzeGitHub(repoParam);
+    // Reopen a public repository shared through `?repo=` (or kept across a refresh).
+    if (initialRepo) void handleAnalyzeGitHub(initialRepo);
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -128,7 +127,8 @@ export function App() {
     }
     const files = record.files?.length ? record.files : await loadFilesFromIdb(record.slug);
     if (files && files.length > 0) {
-      setCustomResult(analyzeRepository(record.repoName, record.description, 'Pinned Browser Cache', files, { repoSlug: record.slug, stackTags: record.stackTags }));
+      setCustomResult(analyzeRepository(record.repoName, record.description, 'Saved in this browser', files, { repoSlug: record.slug, stackTags: record.stackTags }));
+      setSharedRepo(record.slug.startsWith('local/') ? null : record.slug);
     } else if (!record.slug.startsWith('local/')) {
       await handleAnalyzeGitHub(record.slug);
     }
@@ -139,7 +139,7 @@ export function App() {
     getOrStoreBaseline(analysis);
     const updatedFiles: RepoFileInput[] = analysis.nodes.map((n) => ({ path: n.path, content: n.path === filePath ? newContent : n.content }));
     if (customResult) {
-      setCustomResult(analyzeRepository(customResult.repoName, customResult.description, 'Live Refactored Scan', updatedFiles, { repoSlug: customResult.repoSlug, stackTags: customResult.stackTags }));
+      setCustomResult(analyzeRepository(customResult.repoName, customResult.description, 'With your edits', updatedFiles, { repoSlug: customResult.repoSlug, stackTags: customResult.stackTags }));
     } else if (activePresetId) {
       setPresetOverrides((prev) => ({ ...prev, [activePresetId]: updatedFiles }));
     }
@@ -150,10 +150,13 @@ export function App() {
     setErrorMsg(null);
     try {
       const { repoName, description, files, isPrivate } = await fetchGitHubRepoFiles(repoInput, githubToken);
-      const sourceLabel = isPrivate ? 'Private GitHub Scan' : 'Live GitHub Scan';
+      const sourceLabel = isPrivate ? 'Private repo · GitHub' : 'Scanned from GitHub';
       setCustomResult(analyzeRepository(repoName, description, sourceLabel, files, { repoSlug: repoName }));
+      setSharedRepo(isPrivate || githubToken ? null : repoInput.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\/$/, ''));
+      setActivePresetId(null);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to analyze repository.');
+      // fetch() rejects with a bare TypeError ("Failed to fetch") when the network is down or blocked.
+      setErrorMsg(err instanceof TypeError ? 'Couldn’t reach GitHub. Check your internet connection and try again.' : err instanceof Error ? err.message : 'Something went wrong while reading the repository. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -164,9 +167,10 @@ export function App() {
     setErrorMsg(null);
     try {
       const { repoName, description, files } = await readLocalDirectoryFiles(fileList);
-      setCustomResult(analyzeRepository(repoName, description, 'Local Workspace', files, { repoSlug: `local/${repoName}` }));
+      setCustomResult(analyzeRepository(repoName, description, 'Local folder', files, { repoSlug: `local/${repoName}` }));
+      setSharedRepo(null);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to read local directory.');
+      setErrorMsg(err instanceof Error ? err.message : 'Couldn’t read that folder. Please pick it again.');
     } finally {
       setIsLoading(false);
     }

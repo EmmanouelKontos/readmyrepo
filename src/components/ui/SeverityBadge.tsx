@@ -16,9 +16,17 @@ const SEVERITY_LABEL: Record<AuditSeverity | 'clean', string> = {
   clean: 'Clean',
 };
 
+const SEVERITY_HINT: Record<AuditSeverity | 'clean', string> = {
+  critical: 'Fix first: can be exploited or break things in production',
+  high: 'Fix soon: a real risk or a clear slowdown',
+  medium: 'Worth fixing: makes the code harder to work with or slower over time',
+  low: 'Minor: tidy up when convenient',
+  clean: 'No problems found in this file',
+};
+
 export function SeverityBadge({ severity }: { severity: AuditSeverity | 'clean' }) {
   return (
-    <span className={`chip tone-chip ${SEVERITY_TONE[severity]}`}>
+    <span className={`chip tone-chip ${SEVERITY_TONE[severity]}`} title={SEVERITY_HINT[severity]}>
       <span className="tone-dot" aria-hidden="true" />
       {SEVERITY_LABEL[severity]}
     </span>

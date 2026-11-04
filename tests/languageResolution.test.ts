@@ -90,6 +90,31 @@ describe('TypeScript import elision', () => {
   });
 });
 
+describe('Scoring', () => {
+  const big = (n: number) => Array.from({ length: n }, (_, i) => `export const v${i} = ${i};`).join('\n');
+  const small = (i: number) => ({ path: `src/m${i}.ts`, content: `export const x${i} = 1;\n` });
+
+  it('scales the large-file penalty by how much of the codebase is oversized', () => {
+    const tiny = analyzeRepository('t', '', 't', [{ path: 'src/big.ts', content: big(450) }, small(1)]);
+    const wide = analyzeRepository('w', '', 't', [{ path: 'src/big.ts', content: big(450) }, ...Array.from({ length: 30 }, (_, i) => small(i))]);
+    expect(tiny.scores.godFilesCount).toBe(1);
+    expect(wide.scores.godFilesCount).toBe(1);
+    expect(wide.scores.architecture).toBeGreaterThan(tiny.scores.architecture);
+    expect(100 - wide.scores.architecture).toBeGreaterThanOrEqual(4); // still never free
+  });
+
+  it('is independent of file order', () => {
+    const files = [
+      { path: 'src/a.ts', content: 'el.innerHTML = userHtml;\n' },
+      { path: 'src/b.ts', content: 'const key = "sk-proj-a8F3kd92KdlQ0slP2mZ91xQ";\n' },
+      { path: 'src/c.ts', content: 'const q = `SELECT * FROM users WHERE id = ${id}`;\n' },
+    ];
+    const forward = analyzeRepository('o', '', 't', files).scores;
+    const reverse = analyzeRepository('o', '', 't', [...files].reverse()).scores;
+    expect(reverse).toEqual(forward);
+  });
+});
+
 describe('Sampling and rule precision', () => {
   it('skips docs, templates and type-test folders but keeps go.mod', () => {
     expect(isAnalyzablePath('docs_src/tutorial001.py')).toBe(false);
@@ -109,6 +134,26 @@ describe('Sampling and rule precision', () => {
     const picked = selectStratifiedPaths(items, 12, 'fastapi').map((i) => i.path);
     expect(picked).toContain('go.mod');
     expect(picked.filter((p) => p.startsWith('fastapi/')).length).toBeGreaterThanOrEqual(9);
+  });
+
+  it('flags privileged secrets but not public anon keys or look-alike strings', () => {
+    const jwt = (payload: object) => `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${btoa(JSON.stringify(payload)).replace(/=/g, '')}.sig`;
+    const flagged = (content: string) => runSecurityAudit([{ path: 'src/a.ts', content }]).some((f) => f.ruleId === 'SEC-001');
+    expect(flagged(`const k = "${jwt({ role: 'service_role' })}"`)).toBe(true);
+    expect(flagged(`const k = "${jwt({ role: 'anon', iss: 'supabase' })}"`)).toBe(false);
+    expect(flagged('const key = "sk-proj-a8F3kd92KdlQ0slP2mZ91xQ"')).toBe(true);
+    expect(flagged('const aws = "AKIAIOSFODNN7EXAMPLE"')).toBe(true);
+    expect(flagged('<div className="risk-assessment-panel-container-wide" />')).toBe(false);
+    expect(flagged('const t = "task-runner-queue-handler-01"')).toBe(false);
+  });
+
+  it('treats tagged SQL templates and structural interpolation as parameterized', () => {
+    const sec4 = (content: string) => runSecurityAudit([{ path: 'src/db.ts', content }]).filter((f) => f.ruleId === 'SEC-004').length;
+    expect(sec4('const r = tx.$executeRaw`\n  UPDATE "Survey" SET "v" = ${version}\n  WHERE id = ${id}`;')).toBe(0);
+    expect(sec4('await sql`SELECT * FROM users WHERE id = ${id}`;')).toBe(0);
+    expect(sec4('conn.execute(`SELECT ${aggregateColumns} FROM Link WHERE id IN (${linkIdPlaceholders}) AND p = ?`, args);')).toBe(0);
+    expect(sec4('await prisma.$queryRawUnsafe(`SELECT * FROM users WHERE id = ${id}`);')).toBe(1);
+    expect(sec4('db.query(`SELECT * FROM users WHERE name = ${name}`);')).toBe(1);
   });
 
   it('does not flag strcpy of a short string literal', () => {

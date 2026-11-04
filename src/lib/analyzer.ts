@@ -34,14 +34,14 @@ function largeFileFinding(path: string, lines: string[], codeLines: number, limi
   return {
     id: `arch-god-${path}`,
     ruleId: 'ARCH-001',
-    title: `Oversized "God Module" (${codeLines} code lines > ${limit} limit)`,
+    title: `Oversized file: ${codeLines} lines of code (limit ${limit})`,
     category: 'architecture',
     severity: codeLines > limit * 2 ? 'high' : 'medium',
     filePath: path,
     lineNumber: 1,
     codeSnippet: lines.slice(0, 5).join('\n').trim(),
-    explanation: `\`${path}\` has ${codeLines} lines of code (limit for ${largeFileLabel(path)}: ${limit}). Large modules mix responsibilities, inflate AI context usage and attract merge conflicts.`,
-    remediation: 'Split it by responsibility: presentational pieces, state/hooks, and data access or pure helpers in their own modules.',
+    explanation: `\`${path}\` has ${codeLines} lines of code, more than the ${limit} we suggest for ${largeFileLabel(path)}. Very large files usually do several jobs at once, are hard to review, cause merge conflicts, and cost AI assistants more context to read.`,
+    remediation: 'Split it by job: display pieces, state and hooks, and data access or helpers each in their own file.',
     aiFixPrompt: `Refactor oversized module \`${path}\` (${codeLines} code lines, ARCH-001) into focused sub-modules, each well under ${limit} code lines.`,
   };
 }
