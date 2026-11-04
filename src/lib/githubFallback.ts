@@ -48,11 +48,13 @@ export async function fetchPublicFallbackTreeOrFiles(
   branchHint: string | undefined,
   subpath: string | undefined,
   isAnalyzablePath: (p: string) => boolean,
-  selectStratifiedPaths: <T extends { path: string }>(items: T[], max?: number) => T[]
+  selectStratifiedPaths: <T extends { path: string }>(items: T[], max?: number, repoName?: string) => T[]
 ): Promise<{
   branch: string;
   description?: string;
   candidatePaths: Array<{ path: string }>;
+  /** Every analyzable path in the tree (for completing the sample with imported hub modules). */
+  pool?: string[];
   preloadedFiles?: RepoFileInput[];
 } | null> {
   const encOwner = encodeURIComponent(owner);
@@ -75,7 +77,8 @@ export async function fetchPublicFallbackTreeOrFiles(
   }
 
   // Strategy A: Direct Makefile + Local Header Graph Discovery (ideal for torvalds/linux & C/Kbuild subpaths)
-  const makefiles = subpath ? [`${subpath.replace(/\/$/, '')}/Makefile`] : CORE_MAKEFILES;
+  // Only Kbuild trees (the kernel itself, or a C subfolder) are worth probing for Makefiles.
+  const makefiles = subpath ? [`${subpath.replace(/\/$/, '')}/Makefile`] : repo.toLowerCase() === 'linux' ? CORE_MAKEFILES : [];
   const discoveredCPaths = new Set<string>();
 
   for (const mkPath of makefiles) {
@@ -168,7 +171,8 @@ export async function fetchPublicFallbackTreeOrFiles(
         return {
           branch,
           description,
-          candidatePaths: selectStratifiedPaths(filtered, 32),
+          candidatePaths: selectStratifiedPaths(filtered, 32, repo),
+          pool: filtered.map((f) => f.path),
         };
       }
     }

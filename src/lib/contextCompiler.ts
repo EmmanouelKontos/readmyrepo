@@ -35,10 +35,10 @@ export function compileAgentsMdBlueprint(
       ? godFiles
           .map(
             (g) =>
-              `- \`${g.path}\` (${g.linesOfCode} LOC) — exceeds 220-line modularity threshold; split UI primitives, hooks, and service calls.`
+              `- \`${g.path}\` (${g.codeLines ?? g.linesOfCode} code lines, limit ${g.sizeLimit ?? 220}) — split it by responsibility before adding features.`
           )
           .join('\n')
-      : '- All modules currently respect the <220 LOC modularity cap.';
+      : '- No module exceeds its size limit.';
 
   const cycleSummary =
     cyclicEdges.length > 0
@@ -59,8 +59,8 @@ ${layerSummary}
 1. **Entry -> Feature -> UI / Service -> Data**:
    - \`ui/\` components MUST stay stateless and never import from \`feature/\` or \`service/\`.
    - Raw SQL/Supabase/fetch calls MUST live inside \`service/\` or \`lib/\`, never directly inside JSX view trees.
-2. **Modularity Cap (< 220 LOC)**:
-   - Keep every component and module under 220 lines.
+2. **File size limits (code lines, excluding comments)**:
+   - UI components (.tsx/.jsx/.vue/.svelte): 220 · logic modules (.ts/.js/.py): 400 · C/C++/Rust/Go: 800.
 
 ## 4. Current Architectural Hotspots to Respect / Refactor
 ### Oversized Modules (Spaghetti Risk)
@@ -70,18 +70,15 @@ ${hotspotSummary}
 ${cycleSummary}
 `;
 
-  const criticalAndHigh = findings.filter(
-    (f) => f.severity === 'critical' || f.severity === 'high'
+  const severityRank = { critical: 0, high: 1, medium: 2, low: 3 } as const;
+  const ordered = [...findings].sort(
+    (a, b) => severityRank[a.severity] - severityRank[b.severity] || a.filePath.localeCompare(b.filePath) || a.lineNumber - b.lineNumber
   );
-  const otherFindings = findings.filter(
-    (f) => f.severity !== 'critical' && f.severity !== 'high'
-  );
-  const ordered = [...criticalAndHigh, ...otherFindings];
 
   const masterFixPrompt =
     ordered.length === 0
       ? `All security, performance, and architecture checks passed for ${repoName}!`
-      : `You are refactoring **${repoName}**. Please resolve the following ${ordered.length} prioritized findings detected by RepoAtlas while preserving all existing functionality and keeping every file under 220 lines:\n\n` +
+      : `You are refactoring **${repoName}**. Please resolve the following ${ordered.length} prioritized findings detected by RepoAtlas while preserving all existing functionality and keeping files within their size limits (220 code lines for UI components, 400 for logic modules, 800 for systems code):\n\n` +
         ordered
           .map(
             (f, idx) =>

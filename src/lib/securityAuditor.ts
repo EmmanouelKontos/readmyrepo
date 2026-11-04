@@ -42,7 +42,9 @@ const SECURITY_RULES: SecurityRule[] = [
     title: 'Unsanitized HTML Injection / DOM XSS Vector',
     severity: 'high',
     testLine: (line, _path, full) =>
-      (/dangerouslySetInnerHTML\s*=\s*\{/.test(line) || /\.innerHTML\s*=\s*[^=]/.test(line)) &&
+      (/dangerouslySetInnerHTML\s*=\s*\{/.test(line) ||
+        // assigning a static literal (`el.innerHTML = ''`) cannot inject anything
+        (/\.innerHTML\s*=\s*[^=]/.test(line) && !/\.innerHTML\s*=\s*(?:(['"])[^'"]*\1|`[^`$]*`)\s*;?\s*$/.test(line))) &&
       !full.includes('DOMPurify.sanitize'),
     explanation:
       'Rendering raw HTML strings without a strict sanitizer allows attacker-controlled scripts to execute in the user session (Cross-Site Scripting).',
@@ -54,9 +56,10 @@ const SECURITY_RULES: SecurityRule[] = [
     title: 'Raw SQL String Interpolation (SQL Injection Risk)',
     severity: 'critical',
     testLine: (line) =>
-      /(SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)[^;]*\$\{[a-zA-Z0-9_.]+\}/i.test(
-        line
-      ) || /f["'](SELECT|INSERT|UPDATE|DELETE).*\{.+\}/i.test(line),
+      // Require real SQL statement shape (SELECT…FROM, INSERT INTO, UPDATE…SET, DELETE FROM) so
+      // strings like `select-none ${className}` or "update ${count} items" are not flagged.
+      /\b(SELECT\b[^;]*?\bFROM|INSERT\s+INTO|UPDATE\s+[\w."`]+\s+SET|DELETE\s+FROM)\b[^;]*\$\{[a-zA-Z0-9_.]+\}/i.test(line) ||
+      /\bf["'](SELECT\b.*?\bFROM|INSERT\s+INTO|UPDATE\s+\S+\s+SET|DELETE\s+FROM)\b.*\{.+\}/i.test(line),
     explanation:
       'Interpolating user variables directly into SQL strings allows attackers to bypass authentication or exfiltrate tables via SQL injection.',
     remediation:
@@ -80,7 +83,11 @@ const SECURITY_RULES: SecurityRule[] = [
     severity: 'critical',
     testLine: (line, path) =>
       /\.(c|h|cpp|hpp|cc)$/.test(path) &&
-      /\b(strcpy|strcat|sprintf|vsprintf|gets)\s*\(/.test(line),
+      /\b(strcpy|strcat|sprintf|vsprintf|gets)\s*\(/.test(line) &&
+      // copying a short string literal (`strcpy(buf, "...")`) has a compile-time bound
+      !/\b(strcpy|strcat)\s*\([^,]+,\s*"[^"]{0,16}"\s*\)/.test(line) &&
+      // prototypes / macros that *declare* or ban the function (`int sprintf(char *str, …) __attribute__((deprecated))`)
+      !/^\s*(?:#\s*(?:define|undef)\b|(?:extern\s+)?(?:int|char|void|size_t|ssize_t)\s*\*?\s*(?:strcpy|strcat|sprintf|vsprintf|gets)\s*\()/.test(line),
     explanation:
       'Unbounded C string functions write past destination buffer boundaries when input length exceeds allocation, causing kernel panics, heap corruption, or privilege escalation.',
     remediation:

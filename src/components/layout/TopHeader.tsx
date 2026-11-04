@@ -1,216 +1,140 @@
-import { useEffect, useState } from 'react';
-import { HelpCircle, Layers, Moon, Search, ShieldAlert, Sparkles, Sun } from 'lucide-react';
+import { HelpCircle, Layers, ListChecks, Moon, Search, Sparkles, Sun, X } from 'lucide-react';
 import { RepoAtlasLogo } from '../ui/RepoAtlasLogo';
+import { useColorScheme } from '../../hooks/useColorScheme';
 
 export type WorkspaceTab = 'graph' | 'audit' | 'blueprint';
 
 interface TopHeaderProps {
   activeTab: WorkspaceTab;
   findingsCount: number;
+  repoSlug?: string;
   onSelectTab: (tab: WorkspaceTab) => void;
   onResetToHome?: () => void;
   onOpenCommandPalette: () => void;
   onOpenTour: () => void;
 }
 
+const NAV_ITEMS: Array<{ key: WorkspaceTab; label: string; Icon: typeof Layers }> = [
+  { key: 'graph', label: 'Map', Icon: Layers },
+  { key: 'audit', label: 'Findings', Icon: ListChecks },
+  { key: 'blueprint', label: 'AI context', Icon: Sparkles },
+];
+
 export function TopHeader({
   activeTab,
   findingsCount,
+  repoSlug,
   onSelectTab,
   onResetToHome,
   onOpenCommandPalette,
   onOpenTour,
 }: TopHeaderProps) {
-  const [resolvedDark, setResolvedDark] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const computeRenderedScheme = () => {
-      const meta = document.querySelector<HTMLMetaElement>('meta[name="color-scheme"]');
-      const content = meta?.content ?? 'light dark';
-      if (content === 'dark') setResolvedDark(true);
-      else if (content === 'light') setResolvedDark(false);
-      else setResolvedDark(mq.matches);
-    };
-
-    computeRenderedScheme();
-    mq.addEventListener('change', computeRenderedScheme);
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === 'color-scheme') {
-        const meta = document.querySelector<HTMLMetaElement>('meta[name="color-scheme"]');
-        if (meta) meta.content = e.newValue ?? 'light dark';
-        computeRenderedScheme();
-      }
-    };
-    window.addEventListener('storage', onStorage);
-    return () => {
-      mq.removeEventListener('change', computeRenderedScheme);
-      window.removeEventListener('storage', onStorage);
-    };
-  }, []);
-
-  function handleToggleColorScheme() {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const systemScheme = mq.matches ? 'dark' : 'light';
-    const targetScheme = resolvedDark ? 'light' : 'dark';
-    const meta = document.querySelector<HTMLMetaElement>('meta[name="color-scheme"]');
-    try {
-      if (targetScheme === systemScheme) {
-        localStorage.removeItem('color-scheme');
-        if (meta) meta.content = 'light dark';
-      } else {
-        localStorage.setItem('color-scheme', targetScheme);
-        if (meta) meta.content = targetScheme;
-      }
-    } catch {
-      if (meta) meta.content = targetScheme;
-    }
-    setResolvedDark(targetScheme === 'dark');
-  }
-
-  const navItems: Array<{
-    key: WorkspaceTab;
-    step: string;
-    label: string;
-    shortLabel: string;
-    badge?: string;
-    Icon: typeof Layers;
-  }> = [
-    { key: 'graph', step: '01', label: 'Architecture Map', shortLabel: 'Map', Icon: Layers },
-    {
-      key: 'audit',
-      step: '02',
-      label: 'Security & Perf Audit',
-      shortLabel: 'Audit',
-      badge: String(findingsCount),
-      Icon: ShieldAlert,
-    },
-    { key: 'blueprint', step: '03', label: 'AGENTS.md & AI Fix', shortLabel: 'AI Fix', Icon: Sparkles },
-  ];
+  const { isDark, toggle } = useColorScheme();
 
   return (
     <header
-      className="sticky top-0 z-30 px-4 sm:px-6 lg:px-10 py-2.5 backdrop-blur-md"
-      style={{
-        backgroundColor: 'color-mix(in srgb, var(--bg-canvas) 90%, transparent)',
-        borderBottom: '1px solid var(--border-hairline)',
-      }}
+      className="sticky top-0 z-30 divider-b backdrop-blur-md"
+      style={{ backgroundColor: 'color-mix(in srgb, var(--bg-canvas) 86%, transparent)' }}
     >
       <a href="#main-heading" className="skip-link visually-hidden">
         Skip to main content
       </a>
 
-      <div className="max-w-[1640px] mx-auto flex flex-wrap lg:grid lg:grid-cols-[1fr_auto_1fr] items-center justify-between gap-2.5">
-        <button
-          type="button"
-          onClick={onResetToHome}
-          className="flex items-center gap-2.5 shrink-0 lg:justify-self-start cursor-pointer text-left"
-          title="Return to RepoAtlas Launchpad"
-        >
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-            style={{
-              backgroundColor: 'var(--accent-brand-soft)',
-              border: '1px solid var(--border-strong)',
-            }}
+      <div className="max-w-[1480px] mx-auto h-14 px-4 sm:px-6 lg:px-8 grid grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            type="button"
+            onClick={onResetToHome}
+            className="flex items-center gap-2 shrink-0 rounded-md cursor-pointer"
+            title="Back to start"
           >
-            <RepoAtlasLogo size={22} />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="font-display font-bold text-base tracking-tight">RepoAtlas</span>
-            <span
-              className="font-mono-code text-xs px-2 py-0.5 rounded-md font-medium hidden sm:inline-block"
-              style={{
-                backgroundColor: 'var(--bg-elevated)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-hairline)',
-              }}
-            >
-              AST + AI Guardrails
-            </span>
-          </div>
-        </button>
+            <RepoAtlasLogo size={24} />
+            <span className="font-semibold tracking-tight text-[0.9375rem]">RepoAtlas</span>
+          </button>
 
-        <nav
-          aria-label="Primary"
-          className="order-3 lg:order-2 w-full lg:w-auto lg:justify-self-center grid grid-cols-3 lg:flex items-center gap-1 p-1 rounded-xl"
-          style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-hairline)' }}
-        >
-          {navItems.map(({ key, step, label, shortLabel, badge, Icon }) => {
-            const isActive = activeTab === key;
-            return (
+          {repoSlug && (
+            <div className="hidden sm:flex items-center gap-1 min-w-0 atlas-fade-in">
+              <span className="text-muted select-none" aria-hidden="true">/</span>
+              <span className="font-mono-code text-[0.8125rem] truncate max-w-[18rem]" title={repoSlug}>
+                {repoSlug}
+              </span>
+              {onResetToHome && (
+                <button
+                  type="button"
+                  onClick={onResetToHome}
+                  aria-label="Close repository"
+                  className="btn btn-ghost btn-icon btn-sm"
+                >
+                  <X size={14} strokeWidth={1.75} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {repoSlug ? (
+          <nav aria-label="Workspace views" className="segmented order-3 md:order-none col-span-2 md:col-span-1 justify-self-center hidden md:inline-flex">
+            {NAV_ITEMS.map(({ key, label, Icon }) => (
               <button
                 key={key}
                 type="button"
-                aria-current={isActive ? 'page' : undefined}
+                aria-current={activeTab === key ? 'page' : undefined}
                 onClick={() => onSelectTab(key)}
-                className="flex items-center justify-center lg:justify-start gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium cursor-pointer transition-all whitespace-nowrap"
-                style={{
-                  backgroundColor: isActive ? 'var(--bg-surface)' : 'transparent',
-                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  boxShadow: isActive ? '0 1px 2px rgba(0, 0, 0, 0.06)' : 'none',
-                }}
               >
-                <span className="font-mono-code text-xs font-semibold" style={{ color: isActive ? 'var(--accent-brand)' : 'var(--text-muted)' }}>
-                  {step}
-                </span>
-                <Icon size={14} strokeWidth={1.7} className="hidden sm:inline shrink-0" aria-hidden="true" />
-                <span className="sm:hidden">{shortLabel}</span>
-                <span className="hidden sm:inline">{label}</span>
-                {badge !== undefined && (
-                  <span
-                    className="font-mono-code text-xs px-1.5 py-0.2 rounded-full font-semibold"
-                    style={{
-                      backgroundColor: isActive ? 'var(--accent-brand-soft)' : 'var(--bg-subtle)',
-                      color: isActive ? 'var(--accent-brand)' : 'var(--text-secondary)',
-                    }}
-                  >
-                    {badge}
-                  </span>
-                )}
+                <Icon size={14} strokeWidth={1.75} aria-hidden="true" />
+                <span>{label}</span>
+                {key === 'audit' && <span className="count">{findingsCount}</span>}
               </button>
-            );
-          })}
-        </nav>
+            ))}
+          </nav>
+        ) : (
+          <span className="hidden md:block" aria-hidden="true" />
+        )}
 
-        <div className="order-2 lg:order-3 flex items-center gap-2 shrink-0 lg:justify-self-end">
-          <button
-            type="button"
-            onClick={onOpenTour}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors"
-            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', color: 'var(--text-secondary)' }}
-          >
-            <HelpCircle size={14} strokeWidth={1.75} style={{ color: 'var(--accent-brand)' }} aria-hidden="true" />
-            <span className="hidden sm:inline">Quick Tour</span>
-          </button>
-
+        <div className="flex items-center justify-end gap-1">
           <button
             type="button"
             onClick={onOpenCommandPalette}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium cursor-pointer transition-colors"
-            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}
+            className="btn btn-secondary gap-2 pl-2.5 pr-1.5 text-secondary"
+            aria-label="Search modules and findings"
           >
             <Search size={14} strokeWidth={1.75} aria-hidden="true" />
-            <span className="hidden xl:inline">Search</span>
-            <kbd
-              className="font-mono-code text-xs px-1.5 py-0.5 rounded"
-              style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-hairline)' }}
-            >
-              ⌘K
-            </kbd>
+            <span className="hidden lg:inline text-[0.8125rem] pr-6">Search</span>
+            <kbd>⌘K</kbd>
           </button>
-
+          <button type="button" onClick={onOpenTour} className="btn btn-ghost btn-icon" aria-label="Open the quick tour" title="Quick tour">
+            <HelpCircle size={16} strokeWidth={1.75} aria-hidden="true" />
+          </button>
           <button
             type="button"
-            onClick={handleToggleColorScheme}
-            aria-label={resolvedDark ? 'Switch to light theme' : 'Switch to dark theme'}
-            className="p-2 rounded-lg cursor-pointer transition-colors"
-            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', color: 'var(--text-primary)' }}
+            onClick={toggle}
+            aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={isDark ? 'Light theme' : 'Dark theme'}
+            className="btn btn-ghost btn-icon"
           >
-            {resolvedDark ? <Sun size={16} strokeWidth={1.75} aria-hidden="true" /> : <Moon size={16} strokeWidth={1.75} aria-hidden="true" />}
+            {isDark ? <Sun size={16} strokeWidth={1.75} aria-hidden="true" /> : <Moon size={16} strokeWidth={1.75} aria-hidden="true" />}
           </button>
         </div>
       </div>
+
+      {repoSlug && (
+        <nav aria-label="Workspace views (compact)" className="md:hidden px-4 pb-2.5 flex">
+          <div className="segmented w-full grid grid-cols-3">
+            {NAV_ITEMS.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                aria-current={activeTab === key ? 'page' : undefined}
+                onClick={() => onSelectTab(key)}
+                className="justify-center"
+              >
+                {label}
+                {key === 'audit' && <span className="count">{findingsCount}</span>}
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

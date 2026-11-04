@@ -4,7 +4,7 @@ import { SYSTEMS_PRESET_REPOSITORIES } from './presetSystemsRepos';
 
 const GOD_DASHBOARD_LINES = Array.from(
   { length: 215 },
-  (_, idx) => `  // Layout & metric calculation row ${idx + 1}: unsplit monolithic dashboard logic`
+  (_, idx) => `  const metricRow${idx + 1} = invoices.filter((i) => i.amountCents > ${idx * 100}).length;`
 ).join('\n');
 
 export const PRESET_REPOSITORIES: PresetRepository[] = [

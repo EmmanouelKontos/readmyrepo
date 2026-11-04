@@ -21,6 +21,10 @@ export interface RepoNode {
   name: string;
   layer: ArchitecturalLayer;
   linesOfCode: number;
+  /** Non-blank, non-comment lines (what the large-file rule measures). */
+  codeLines?: number;
+  /** Large-file threshold for this file's language, in code lines. */
+  sizeLimit?: number;
   estimatedTokens: number;
   imports: string[];
   importedBy: string[];
@@ -37,6 +41,10 @@ export interface DependencyEdge {
   from: string;
   to: string;
   isCircular: boolean;
+  /** TypeScript `import type` / `export type` — erased at runtime, so it can never cause an init-order cycle. */
+  typeOnly?: boolean;
+  /** 1-based line of the import statement in `from`. */
+  line?: number;
 }
 
 export interface AuditFinding {

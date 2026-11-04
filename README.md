@@ -6,11 +6,13 @@
 
 ## Key Capabilities
 
-- **Universal Multi-Language AST Dependency Graph**:
-  - Resolves cross-file module dependencies across **TypeScript / JavaScript** (ESM, CommonJS, tsconfig aliases, `.js` → `.ts` resolution), **Python**, **Rust** (`mod` / `use crate::`), **C11 / C++** (`#include "..."`), **Chrome Extensions (Manifest V3)** (`manifest.json` → service worker & content scripts), and **Tauri v2 Desktop Apps** (Frontend `invoke('cmd')` → Rust `#[tauri::command]`).
-  - Interactive SVG canvas with pan/zoom, radial 1-hop dependency spotlight, topological layer grouping, and circular dependency cycle highlighting (2-hop & 3-hop DFS cycle detection).
-- **16-Rule Forensic Static Analysis Engine**:
-  - Comment-stripped scanning across **8 Security Rules** (`SEC-001` through `SEC-008`), **6 Performance Rules** (`PERF-001` through `PERF-006`), and **3 Architectural Rules** (`ARCH-001` God Module `>220 LOC`, `ARCH-002` Circular Dependency Cycle, `ARCH-003` Upward Layer Inversion).
+- **Multi-Language Dependency Graph**:
+  - Resolves cross-file dependencies across **TypeScript / JavaScript** (ESM, CommonJS, tsconfig aliases, `.js` → `.ts`, barrel re-exports), **Python** (relative and absolute imports, submodule vs. package `__init__`), **Go** (`go.mod` module paths plus symbol-level links between files of one package), **Rust** (`mod`, grouped `use crate::{…}`, `super::` / `self::`), **C / C++** (`#include`), **Chrome Extensions (MV3)** (`manifest.json` → service worker & content scripts) and **Tauri v2** (`invoke('cmd')` → `#[tauri::command]`).
+  - Type-only imports (explicit `import type` *and* bindings TypeScript erases because they are only used as types) are kept out of cycle detection, so reported cycles are runtime cycles.
+  - Large repositories are sampled by directory, then the sample is completed with the hub modules it imports (shared headers, utils, base classes) so the graph stays connected.
+  - Interactive SVG map with zoom, layer lanes that wrap busy layers into columns, 1-hop dependency spotlight and cycle highlighting (Tarjan SCC).
+- **Static Analysis Engine**:
+  - Comment-aware scanning with **8 Security Rules** (`SEC-001`–`SEC-008`), **6 Performance Rules** (`PERF-001`–`PERF-006`) and **3 Architecture Rules** (`ARCH-001` oversized module — 220 code lines for UI components, 400 for logic modules, 800 for C/C++/Rust/Go; `ARCH-002` circular dependency; `ARCH-003` upward layer inversion).
 - **Live In-Browser Remediation & Score Delta Tracking**:
   - Inspect any module in the **Live Code Inspector**, apply a 1-click **"Simulate AI Fix & Re-Scan"** or edit code directly, and watch Architecture, Security, Performance, and Token Footprint deltas update in real time.
 - **Persistent Pinned Projects (Two-Tier Browser Cache)**:
@@ -29,7 +31,7 @@ bun install
 # Start local development server
 bun run dev
 
-# Run the 14-suite forensic & self-audit test suite
+# Run the analyzer test suite
 bun test
 
 # Build production bundle

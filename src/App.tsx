@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, Cpu, Layers, ShieldAlert, Sparkles } from 'lucide-react';
 import { TopHeader, WorkspaceTab } from './components/layout/TopHeader';
-import { RepoAtlasLogo } from './components/ui/RepoAtlasLogo';
 import { RepoSourceBar } from './components/layout/RepoSourceBar';
 import { RepoHeroHeader } from './components/layout/RepoHeroHeader';
+import { ScoreOverview } from './components/layout/ScoreOverview';
+import { AppFooter, ErrorBanner } from './components/layout/AppChrome';
 import { EmptyWorkspaceHero } from './components/layout/EmptyWorkspaceHero';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { OnboardingTourModal } from './components/layout/OnboardingTourModal';
-import { ScoreCard } from './components/ui/ScoreCard';
 import { ArchitectureMap } from './features/graph/ArchitectureMap';
 import { AuditTable } from './features/audit/AuditTable';
 import { AiBlueprintPanel } from './features/exporter/AiBlueprintPanel';
@@ -19,7 +18,7 @@ import { readLocalDirectoryFiles } from './lib/localFolderReader';
 import { isProjectPinned, loadFilesFromIdb, loadPinnedProjects, pinOrUpdateProject, unpinProject } from './lib/pinnedProjectsStore';
 import { PRESET_REPOSITORIES } from './lib/presetRepos';
 import { computeSnapshotDiff, getOrStoreBaseline, resetBaselineForRepo } from './lib/snapshotTracker';
-import { PinnedProjectRecord, RepoAnalysisResult, RepoFileInput } from './types/atlas';
+import { AuditCategory, PinnedProjectRecord, RepoAnalysisResult, RepoFileInput } from './types/atlas';
 
 const TOUR_STORAGE_KEY = 'repo-atlas-tour-completed-v1';
 
@@ -94,9 +93,9 @@ export function App() {
     else update();
   }
 
-  function handleSelectTab(tab: WorkspaceTab) {
+  function handleSelectTab(tab: WorkspaceTab, filter?: AuditCategory) {
     runScopedTransition(() => {
-      if (tab === 'audit') setAuditFilter('all');
+      if (tab === 'audit') setAuditFilter(filter ?? 'all');
       setActiveTab(tab);
     });
   }
@@ -174,41 +173,42 @@ export function App() {
   }
 
   const canRescanGitHub = Boolean(customResult && analysis && !analysis.repoSlug.startsWith('local/'));
+  const viewProps = (tab: WorkspaceTab) => ({
+    className: `spa-view ${activeTab === tab ? 'atlas-fade-in' : 'inactive'}`,
+    'aria-hidden': activeTab !== tab,
+    inert: activeTab !== tab,
+  });
+
+  function handleResetBaseline() {
+    if (!analysis) return;
+    if (!customResult && activePresetId) setPresetOverrides((prev) => { const c = { ...prev }; delete c[activePresetId]; return c; });
+    resetBaselineForRepo(analysis);
+    setBaselineVersion((v) => v + 1);
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
-      <TopHeader activeTab={activeTab} findingsCount={analysis?.findings.length ?? 0} onSelectTab={handleSelectTab} onResetToHome={handleResetToHome} onOpenCommandPalette={() => setIsPaletteOpen(true)} onOpenTour={() => setIsTourOpen(true)} />
-      {(analysis || pinnedProjects.length > 0) && (
-        <RepoSourceBar activeRepoSlug={analysis?.repoSlug} pinnedProjects={pinnedProjects} onClearProject={handleResetToHome} onSelectPinned={handleSelectPinned} onUnpinProject={(slug) => setPinnedProjects(unpinProject(slug))} onAnalyzeGitHub={handleAnalyzeGitHub} onUploadFolder={handleUploadFolder} isLoading={isLoading} />
-      )}
+      <TopHeader activeTab={activeTab} findingsCount={analysis?.findings.length ?? 0} repoSlug={analysis?.repoSlug} onSelectTab={handleSelectTab} onResetToHome={handleResetToHome} onOpenCommandPalette={() => setIsPaletteOpen(true)} onOpenTour={() => setIsTourOpen(true)} />
+      {isLoading && <div className="atlas-loading-bar" role="progressbar" aria-label="Analyzing repository" />}
 
-      <main ref={workspaceRef} className="flex-1 max-w-[1640px] w-full mx-auto px-4 sm:px-6 lg:px-10 py-6 space-y-6">
-        {errorMsg && <div role="alert" className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-700 dark:text-red-300">{errorMsg}</div>}
+      <main ref={workspaceRef} className="flex-1 max-w-[1480px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+        {errorMsg && <ErrorBanner message={errorMsg} onDismiss={() => setErrorMsg(null)} />}
 
         {!analysis ? (
           <EmptyWorkspaceHero pinnedProjects={pinnedProjects} isLoading={isLoading} onAnalyzeGitHub={handleAnalyzeGitHub} onUploadFolder={handleUploadFolder} onSelectPinned={handleSelectPinned} onUnpinProject={(slug) => setPinnedProjects(unpinProject(slug))} />
         ) : (
           <>
-            <RepoHeroHeader analysis={analysis} activeTab={activeTab} diff={snapshotDiff} isPinned={isCurrentPinned} onTogglePin={handleTogglePin} onRescanLive={canRescanGitHub ? () => void handleAnalyzeGitHub(analysis.repoSlug) : undefined} onResetBaseline={() => { if (!customResult && activePresetId) setPresetOverrides((prev) => { const c = { ...prev }; delete c[activePresetId]; return c; }); resetBaselineForRepo(analysis); setBaselineVersion((v) => v + 1); }} onPrimaryAction={() => { if (analysis.findings.length > 0 && activeTab !== 'audit') { setAuditFilter('all'); setActiveTab('audit'); } else setActiveTab('blueprint'); }} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
-              <ScoreCard label="Architecture & Modularity" score={analysis.scores.architecture} delta={snapshotDiff?.architectureDelta} subtitle={`${analysis.scores.circularDepsCount} circular cycles · ${analysis.scores.godFilesCount} god files (>220 LOC)`} actionLabel="Map" isActive={activeTab === 'graph'} onClick={() => setActiveTab('graph')} icon={<Layers size={16} strokeWidth={1.7} aria-hidden="true" />} />
-              <ScoreCard label="Security Posture" score={analysis.scores.security} delta={snapshotDiff?.securityDelta} subtitle={analysis.findings.filter((f) => f.category === 'security').length === 0 ? '0 vulnerabilities · 8 security rules verified' : `${analysis.findings.filter((f) => f.category === 'security').length} security ${analysis.findings.filter((f) => f.category === 'security').length === 1 ? 'advisory' : 'advisories'} flagged`} actionLabel="Audit" isActive={activeTab === 'audit' && auditFilter === 'security'} onClick={() => { setAuditFilter('security'); setActiveTab('audit'); }} icon={<ShieldAlert size={16} strokeWidth={1.7} aria-hidden="true" />} />
-              <ScoreCard label="Performance & Bundle" score={analysis.scores.performance} delta={snapshotDiff?.performanceDelta} subtitle={analysis.findings.filter((f) => f.category === 'performance').length === 0 ? '0 bottlenecks · 6 perf rules verified' : `${analysis.findings.filter((f) => f.category === 'performance').length} runtime/bundle ${analysis.findings.filter((f) => f.category === 'performance').length === 1 ? 'issue' : 'issues'} flagged`} actionLabel="Audit" isActive={activeTab === 'audit' && auditFilter === 'performance'} onClick={() => { setAuditFilter('performance'); setActiveTab('audit'); }} icon={<Activity size={16} strokeWidth={1.7} aria-hidden="true" />} />
-              <ScoreCard label="AI Context Footprint" score={analysis.scores.totalTokens} delta={snapshotDiff?.tokenDelta} suffix="tokens" isMetric subtitle={`${analysis.scores.totalFiles} modules · ${analysis.scores.totalLines.toLocaleString()} total LOC`} actionLabel="AGENTS.md" isActive={activeTab === 'blueprint'} onClick={() => setActiveTab('blueprint')} icon={<Cpu size={16} strokeWidth={1.7} aria-hidden="true" />} />
-            </div>
-            <section className={`spa-view ${activeTab === 'graph' ? '' : 'inactive'}`} aria-hidden={activeTab !== 'graph'} {...(activeTab !== 'graph' ? ({ inert: '' } as Record<string, string>) : {})}><ArchitectureMap nodes={analysis.nodes} edges={analysis.edges} findings={analysis.findings} onInspectCode={(n) => setInspectedPath(n.path)} /></section>
-            <section className={`spa-view ${activeTab === 'audit' ? '' : 'inactive'}`} aria-hidden={activeTab !== 'audit'} {...(activeTab !== 'audit' ? ({ inert: '' } as Record<string, string>) : {})}><AuditTable findings={analysis.findings} initialFilter={auditFilter} onSelectFilePath={setInspectedPath} /></section>
-            <section className={`spa-view ${activeTab === 'blueprint' ? '' : 'inactive'}`} aria-hidden={activeTab !== 'blueprint'} {...(activeTab !== 'blueprint' ? ({ inert: '' } as Record<string, string>) : {})}><AiBlueprintPanel repoName={analysis.repoName} agentsMdBlueprint={analysis.agentsMdBlueprint} masterFixPrompt={analysis.masterFixPrompt} /></section>
+            {pinnedProjects.length > 0 && <RepoSourceBar activeRepoSlug={analysis.repoSlug} pinnedProjects={pinnedProjects} onSelectPinned={handleSelectPinned} onUnpinProject={(slug) => setPinnedProjects(unpinProject(slug))} onAnalyzeGitHub={handleAnalyzeGitHub} onUploadFolder={handleUploadFolder} isLoading={isLoading} />}
+            <RepoHeroHeader analysis={analysis} activeTab={activeTab} diff={snapshotDiff} isPinned={isCurrentPinned} onTogglePin={handleTogglePin} onRescanLive={canRescanGitHub ? () => void handleAnalyzeGitHub(analysis.repoSlug) : undefined} onResetBaseline={handleResetBaseline} onPrimaryAction={() => handleSelectTab(analysis.findings.length > 0 && activeTab !== 'audit' ? 'audit' : 'blueprint')} />
+            <ScoreOverview analysis={analysis} diff={snapshotDiff} activeTab={activeTab} auditFilter={auditFilter} onOpenTab={handleSelectTab} />
+            <section {...viewProps('graph')}><ArchitectureMap nodes={analysis.nodes} edges={analysis.edges} findings={analysis.findings} onInspectCode={(n) => setInspectedPath(n.path)} /></section>
+            <section {...viewProps('audit')}><AuditTable findings={analysis.findings} initialFilter={auditFilter} onSelectFilePath={setInspectedPath} /></section>
+            <section {...viewProps('blueprint')}><AiBlueprintPanel repoName={analysis.repoName} agentsMdBlueprint={analysis.agentsMdBlueprint} masterFixPrompt={analysis.masterFixPrompt} /></section>
           </>
         )}
       </main>
 
-      <footer className="px-4 sm:px-6 lg:px-10 py-4 mt-8 text-xs" style={{ borderTop: '1px solid var(--border-hairline)', color: 'var(--text-muted)' }}>
-        <div className="max-w-[1640px] mx-auto flex flex-wrap items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5"><RepoAtlasLogo size={16} /> RepoAtlas — Universal AST Dependency Mapper, Security/Perf Auditor &amp; AI Context Compiler</span>
-          <span className="font-mono-code flex items-center gap-1.5"><Sparkles size={12} aria-hidden="true" /> Press ⌘K / Ctrl+K to jump to any module or audit rule</span>
-        </div>
-      </footer>
+      <AppFooter />
 
       <OnboardingTourModal isOpen={isTourOpen} onClose={handleCloseTour} onSelectPreset={(id) => { setCustomResult(null); setActivePresetId(id); }} onSelectTab={handleSelectTab} />
       <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} nodes={analysis?.nodes ?? []} findings={analysis?.findings ?? []} onSelectNode={(n) => setInspectedPath(n.path)} onJumpToTab={handleSelectTab} />

@@ -99,12 +99,17 @@ export function runPerformanceAudit(files: RepoFileInput[]): AuditFinding[] {
         });
       }
 
-      // PERF-004: N+1 query inside a loop
-      if (
-        /\b(for\s*\(|while\s*\(|\.map\s*\(\s*async)/.test(line) &&
-        /\bawait\s+(fetch|supabase|db|prisma)/.test(`${line}\n${nextLine}\n${nextNextLine}`) &&
-        canEmit('PERF-004', file.path)
-      ) {
+      // PERF-004: N+1 query inside a loop over a collection.
+      // Counter/retry loops (`for (let i = 0; i < MAX_REDIRECTS; i++)`) and parallel HTTP fan-out
+      // (`Promise.all(urls.map(async …fetch))`) are not N+1 patterns and are deliberately ignored.
+      const loopWindow = `${line}\n${nextLine}\n${nextNextLine}`;
+      const iteratesCollection =
+        /\bfor\s*(?:await\s*)?\(\s*(?:const|let|var)\s+[^;]+?\s+of\s+/.test(line) || /^\s*(?:async\s+)?for\s+\w+(?:\s*,\s*\w+)*\s+in\s+.+:\s*$/.test(line);
+      const mapsAsync = /\.(map|forEach)\s*\(\s*async\b/.test(line);
+      const dbCall = /\bawait\s+(?:supabase|db|prisma|knex|sql|pool|tx|trx|\w+\.(?:query|execute|findOne|findUnique|findFirst|findMany|from|select|insert|update|get_or_create)\s*\()/.test(loopWindow) ||
+        /\b(?:session\.query|cursor\.execute|\.objects\.(?:get|filter))\(/.test(`${nextLine}\n${nextNextLine}`);
+      const httpCall = /\bawait\s+(?:fetch|axios|ky|got)\b/.test(loopWindow);
+      if (((iteratesCollection && (dbCall || httpCall)) || (mapsAsync && dbCall)) && canEmit('PERF-004', file.path)) {
         findings.push({
           id: `perf-${counter++}`,
           ruleId: 'PERF-004',
@@ -149,14 +154,16 @@ export function runPerformanceAudit(files: RepoFileInput[]): AuditFinding[] {
         });
       }
 
-      // PERF-006: Blocking CPU busy-wait (mdelay) or undocumented unsafe block in C/Rust
+      // PERF-006: Blocking CPU busy-wait (mdelay) in C, or an undocumented raw-pointer/FFI `unsafe` block in Rust.
+      // Rust 2024's required `unsafe { std::env::set_var(..) }` and similar API-level unsafe calls are not flagged.
       const prevLine = lines[i - 1] ?? '';
       const safetyWindow = lines.slice(Math.max(0, i - 5), i + 1).join('\n');
+      const unsafeBody = lines.slice(i, i + 6).join('\n');
+      const rawPointerUnsafe =
+        /\bunsafe\s*\{/.test(line) && /(\*\s*\w+\s*=|\*mut\b|\*const\b|transmute|from_raw|get_unchecked|ptr::|as_ptr|offset\(|\bextern\b)/.test(unsafeBody);
       if (
         ((/\.(c|h|cpp|cc)$/.test(file.path) && /\bmdelay\s*\(\s*\d+/.test(line)) ||
-          (file.path.endsWith('.rs') &&
-            /\bunsafe\s*\{/.test(line) &&
-            !/\/\/\s*SAFETY:/i.test(safetyWindow))) &&
+          (file.path.endsWith('.rs') && rawPointerUnsafe && !/\/\/\s*SAFETY:/i.test(safetyWindow))) &&
         canEmit('PERF-006', file.path)
       ) {
         findings.push({
@@ -166,7 +173,7 @@ export function runPerformanceAudit(files: RepoFileInput[]): AuditFinding[] {
             ? 'Undocumented `unsafe` Block Without `// SAFETY:` Invariant'
             : 'Hard CPU Busy-Wait (`mdelay`) Stalling Scheduler Core',
           category: 'performance',
-          severity: 'high',
+          severity: file.path.endsWith('.rs') ? 'medium' : 'high',
           filePath: file.path,
           lineNumber: i + 1,
           codeSnippet: `${prevLine.trim()}\n${line.trim()}`.trim(),

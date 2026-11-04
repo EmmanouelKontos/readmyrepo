@@ -1,7 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { FileCode, Search, ShieldAlert, Sparkles, X } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { FileCode, LayoutGrid, Network, Search, ShieldAlert, type LucideIcon } from 'lucide-react';
 import { AuditFinding, RepoNode } from '../../types/atlas';
 import { SeverityBadge } from '../ui/SeverityBadge';
+
+type PaletteTab = 'graph' | 'audit' | 'blueprint';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -9,20 +11,59 @@ interface CommandPaletteProps {
   nodes: RepoNode[];
   findings: AuditFinding[];
   onSelectNode: (node: RepoNode) => void;
-  onJumpToTab: (tab: 'graph' | 'audit' | 'blueprint') => void;
+  onJumpToTab: (tab: PaletteTab) => void;
 }
 
-export function CommandPalette({
-  isOpen,
-  onClose,
-  nodes,
-  findings,
-  onSelectNode,
-  onJumpToTab,
-}: CommandPaletteProps) {
+type PaletteItem =
+  | { kind: 'node'; id: string; node: RepoNode }
+  | { kind: 'finding'; id: string; finding: AuditFinding }
+  | { kind: 'view'; id: string; tab: PaletteTab; label: string; Icon: LucideIcon };
+
+const ICON = { size: 15, strokeWidth: 1.75, 'aria-hidden': true } as const;
+const GROUPS = [
+  { kind: 'node', label: 'Modules' },
+  { kind: 'finding', label: 'Findings' },
+  { kind: 'view', label: 'Go to' },
+] as const;
+
+function ItemContent({ item }: { item: PaletteItem }) {
+  if (item.kind === 'node') {
+    return (
+      <>
+        <FileCode {...ICON} className="text-muted shrink-0" />
+        <span className="font-mono-code min-w-0 flex-1 truncate text-[0.8125rem]">{item.node.path}</span>
+        <span className="count">{item.node.linesOfCode} LOC</span>
+        <SeverityBadge severity={item.node.maxSeverity} />
+      </>
+    );
+  }
+  if (item.kind === 'finding') {
+    return (
+      <>
+        <ShieldAlert {...ICON} className="text-muted shrink-0" />
+        <span className="min-w-0 flex-1 truncate">
+          <span className="font-mono-code text-muted mr-2 text-xs">{item.finding.ruleId}</span>
+          {item.finding.title}
+        </span>
+        <SeverityBadge severity={item.finding.severity} />
+      </>
+    );
+  }
+  return (
+    <>
+      <item.Icon {...ICON} className="text-muted shrink-0" />
+      <span className="flex-1">{item.label}</span>
+    </>
+  );
+}
+
+export function CommandPalette({ isOpen, onClose, nodes, findings, onSelectNode, onJumpToTab }: CommandPaletteProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const listId = useId();
   const [query, setQuery] = useState('');
+  const [activeIdx, setActiveIdx] = useState(0);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -63,136 +104,95 @@ export function CommandPalette({
   const matchingFindings = findings
     .filter((f) => !q || f.title.toLowerCase().includes(q) || f.ruleId.toLowerCase().includes(q))
     .slice(0, 4);
+  const views: PaletteItem[] = (
+    [
+      { kind: 'view', id: 'view-graph', tab: 'graph', label: 'Architecture graph', Icon: Network },
+      { kind: 'view', id: 'view-audit', tab: 'audit', label: `Audit findings (${findings.length})`, Icon: ShieldAlert },
+      { kind: 'view', id: 'view-blueprint', tab: 'blueprint', label: 'AGENTS.md export', Icon: LayoutGrid },
+    ] satisfies PaletteItem[]
+  ).filter((v) => !q || (v.kind === 'view' && v.label.toLowerCase().includes(q)));
+
+  const items: PaletteItem[] = [
+    ...matchingNodes.map((node): PaletteItem => ({ kind: 'node', id: `node-${node.id}`, node })),
+    ...matchingFindings.map((finding): PaletteItem => ({ kind: 'finding', id: `finding-${finding.id}`, finding })),
+    ...views,
+  ];
+  const safeIdx = Math.min(activeIdx, Math.max(0, items.length - 1));
+  const activeItem = items[safeIdx];
+
+  useEffect(() => {
+    listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [safeIdx]);
+
+  function runItem(item: PaletteItem) {
+    if (item.kind === 'node') onSelectNode(item.node);
+    else if (item.kind === 'finding') onJumpToTab('audit');
+    else onJumpToTab(item.tab);
+    dialogRef.current?.close();
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (items.length === 0) return;
+      const delta = e.key === 'ArrowDown' ? 1 : -1;
+      setActiveIdx((safeIdx + delta + items.length) % items.length);
+    } else if (e.key === 'Enter') {
+      if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+      e.preventDefault();
+      if (activeItem) runItem(activeItem);
+    }
+  }
 
   return (
-    <dialog
-      ref={dialogRef}
-      {...({ closedby: 'any' } as Record<string, string>)}
-      aria-labelledby={titleId}
-      className="atlas-dialog"
-    >
-      <div className="p-5">
-        <div
-          className="flex items-center justify-between pb-3.5 mb-3.5"
-          style={{ borderBottom: '1px solid var(--border-hairline)' }}
-        >
-          <div className="flex items-center gap-2.5 flex-1">
-            <Search size={16} strokeWidth={1.7} style={{ color: 'var(--text-muted)' }} aria-hidden="true" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                  e.preventDefault();
-                  if (matchingNodes.length > 0) {
-                    onSelectNode(matchingNodes[0]);
-                    dialogRef.current?.close();
-                  } else if (matchingFindings.length > 0) {
-                    onJumpToTab('audit');
-                    dialogRef.current?.close();
-                  }
-                }
-              }}
-              placeholder="Jump to module, security rule, or export blueprint (Press Enter)..."
-              aria-labelledby={titleId}
-              className="w-full bg-transparent text-sm focus:outline-none"
-              autoFocus
-            />
-          </div>
-          <span id={titleId} className="visually-hidden">
-            Command Palette Search
-          </span>
-          <button
-            type="button"
-            aria-label="Close command palette"
-            onClick={() => dialogRef.current?.close()}
-            className="p-1.5 rounded-lg cursor-pointer"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
-        </div>
+    <dialog ref={dialogRef} {...({ closedby: 'any' } as Record<string, string>)} aria-labelledby={titleId} className="atlas-dialog" style={{ maxWidth: 'min(40rem, 94vw)', marginTop: '12vh' }}>
+      <span id={titleId} className="visually-hidden">Command palette</span>
+      <div className="divider-b flex items-center gap-3 px-4">
+        <Search {...ICON} size={16} className="text-muted shrink-0" />
+        <input
+          type="text"
+          role="combobox"
+          aria-expanded="true"
+          aria-controls={listId}
+          aria-activedescendant={activeItem ? `${listId}-${activeItem.id}` : undefined}
+          aria-labelledby={titleId}
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setActiveIdx(0); }}
+          onKeyDown={handleKeyDown}
+          placeholder="Search modules, rules or views"
+          className="h-14 w-full bg-transparent text-[0.9375rem] outline-none placeholder:text-[var(--text-muted)] focus-visible:outline-none"
+          autoFocus
+        />
+        <button type="button" aria-label="Close command palette" onClick={() => dialogRef.current?.close()} className="kbd shrink-0 cursor-pointer">Esc</button>
+      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
-          {(
-            [
-              ['graph', '01 · Architecture Graph', Sparkles],
-              ['audit', `02 · Security & Perf (${findings.length})`, ShieldAlert],
-              ['blueprint', '03 · Export AGENTS.md', FileCode],
-            ] as const
-          ).map(([tab, label, Icon]) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => {
-                onJumpToTab(tab);
-                dialogRef.current?.close();
-              }}
-              className="flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold text-left cursor-pointer"
-              style={{
-                backgroundColor: 'var(--bg-elevated)',
-                border: '1px solid var(--border-hairline)',
-              }}
-            >
-              <Icon size={14} style={{ color: 'var(--accent-brand)' }} aria-hidden="true" />
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="mb-4 space-y-1.5">
-          <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-            Repository Modules ({matchingNodes.length})
-          </p>
-          {matchingNodes.map((node) => (
-            <button
-              key={node.id}
-              type="button"
-              onClick={() => {
-                onSelectNode(node);
-                dialogRef.current?.close();
-              }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs cursor-pointer"
-              style={{ backgroundColor: 'var(--bg-elevated)' }}
-            >
-              <span className="font-mono-code font-medium truncate">{node.path}</span>
-              <div className="flex items-center gap-2">
-                <span className="font-mono-code text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  {node.linesOfCode} LOC
-                </span>
-                <SeverityBadge severity={node.maxSeverity} />
+      <div ref={listRef} id={listId} role="listbox" aria-label="Results" className="max-h-[22rem] overflow-y-auto p-2">
+        {items.length === 0 && <p className="text-muted px-3 py-8 text-center">No results for “{query.trim()}”</p>}
+        {GROUPS.map((group) => {
+          const groupItems = items.filter((it) => it.kind === group.kind);
+          if (groupItems.length === 0) return null;
+          return (
+            <div key={group.kind} role="group" aria-label={group.label} className="pb-1">
+              <div className="eyebrow flex items-center gap-1.5 px-3 pb-1 pt-2">
+                {group.label} <span className="count">{groupItems.length}</span>
               </div>
-            </button>
-          ))}
-        </div>
+              {groupItems.map((item) => {
+                const isActive = item === activeItem;
+                return (
+                  <div key={item.id} id={`${listId}-${item.id}`} role="option" aria-selected={isActive} data-active={isActive} onMouseMove={() => !isActive && setActiveIdx(items.indexOf(item))} onClick={() => runItem(item)} className="flex h-9 cursor-pointer items-center gap-2.5 rounded-[6px] px-3" style={{ background: isActive ? 'var(--bg-elevated)' : 'transparent' }}>
+                    <ItemContent item={item} />
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
 
-        {matchingFindings.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-              Audit Findings ({matchingFindings.length})
-            </p>
-            {matchingFindings.map((finding) => (
-              <button
-                key={finding.id}
-                type="button"
-                onClick={() => {
-                  onJumpToTab('audit');
-                  dialogRef.current?.close();
-                }}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs cursor-pointer"
-                style={{ backgroundColor: 'var(--bg-elevated)' }}
-              >
-                <span className="truncate">
-                  <strong className="font-mono-code mr-1.5">{finding.ruleId}</strong>
-                  {finding.title}
-                </span>
-                <SeverityBadge severity={finding.severity} />
-              </button>
-            ))}
-          </div>
-        )}
+      <div className="divider-t text-muted flex items-center gap-4 px-4 py-2.5 text-xs">
+        <span className="flex items-center gap-1.5"><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+        <span className="flex items-center gap-1.5"><kbd>↵</kbd> Open</span>
+        <span className="flex items-center gap-1.5"><kbd>Esc</kbd> Close</span>
       </div>
     </dialog>
   );

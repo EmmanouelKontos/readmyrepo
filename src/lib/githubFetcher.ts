@@ -1,11 +1,14 @@
 import { RepoFileInput } from '../types/atlas';
 import { fetchPublicFallbackTreeOrFiles } from './githubFallback';
+import { missingImportTargets } from './importClosure';
+import { isAnalyzablePath, selectStratifiedPaths } from './pathSelection';
 
-const CODE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.py', '.rs', '.c', '.h', '.cpp', '.hpp', '.cc', '.go', '.swift', '.kt', '.dart', '.vue', '.svelte', '.sql', '.json', '.toml'];
-const IGNORED_DIRS = ['node_modules/', 'dist/', 'build/', '.next/', '.git/', 'vendor/', 'coverage/', '__pycache__/', 'documentation/', 'tools/testing/', '__tests__/', '__mocks__/', '/test/', '/tests/', '/testing/', 'fixtures/', 'examples/', 'benchmarks/', 'samples/', 'scripts/', '.github/', '.vscode/'];
+export { isAnalyzablePath, selectStratifiedPaths };
+
 const SAFE_SLUG_SEGMENT = /^[a-zA-Z0-9._-]+$/;
 const ALLOWED_GITHUB_HOSTS = new Set(['api.github.com', 'raw.githubusercontent.com', 'ungh.cc']);
 const SAFE_PAT_PATTERN = /^(gh[pousr]_[A-Za-z0-9_]{16,255}|github_pat_[A-Za-z0-9_]{20,255})$/;
+const MAX_CLOSURE_FILES = 12;
 const PRIORITY_ROOT_DIRS = ['src', 'app', 'kernel', 'init', 'mm', 'rust', 'security', 'ipc', 'packages', 'crates', 'lib', 'cmd', 'server'];
 
 export function validateGitHubToken(rawToken?: string): string | undefined {
@@ -22,54 +25,6 @@ export function assertAllowedGitHubEndpoint(url: string): void {
   if (parsed.protocol !== 'https:' || !ALLOWED_GITHUB_HOSTS.has(parsed.hostname)) {
     throw new Error(`Blocked outbound connection to untrusted host: ${parsed.hostname}`);
   }
-}
-
-export function isAnalyzablePath(path: string): boolean {
-  if (path.includes('..') || path.startsWith('/')) return false;
-  const lower = path.toLowerCase();
-  if (IGNORED_DIRS.some((dir) => lower.includes(dir))) return false;
-  if (/(?:\.test|\.spec|\.d|_test|-test)\.[a-z0-9]+$/i.test(lower)) return false;
-  if (lower.endsWith('package-lock.json') || lower.endsWith('bun.lock') || lower.endsWith('cargo.lock')) return false;
-  if (lower.endsWith('.json') && path.includes('/') && !lower.endsWith('manifest.json') && !lower.endsWith('tauri.conf.json')) {
-    return false;
-  }
-  return CODE_EXTENSIONS.some((ext) => lower.endsWith(ext));
-}
-
-export function selectStratifiedPaths<T extends { path: string }>(items: T[], maxFiles = 32): T[] {
-  if (items.length <= maxFiles) return items;
-
-  const byDir = new Map<string, T[]>();
-  for (const item of items) {
-    const parts = item.path.split('/');
-    const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : '.';
-    const list = byDir.get(dir) ?? [];
-    list.push(item);
-    byDir.set(dir, list);
-  }
-
-  const dirClusters = Array.from(byDir.entries()).map(([dir, files]) => {
-    const hasHeader = files.some((f) => /(\.h|mod\.rs|lib\.rs|index\.[tj]sx?|sched\.h|types\.[tj]s)$/i.test(f.path));
-    const implCount = files.filter((f) => /\.(c|rs|ts|tsx|js|jsx|py|go|swift|kt)$/i.test(f.path)).length;
-    const isCore = /^(src|app|kernel\/sched|kernel\/locking|init|mm|rust\/kernel|packages\/[^/]+\/src|crates\/[^/]+\/src|lib|cmd)(\/|$)/.test(dir);
-    return { dir, files, score: Math.min(implCount, 12) * 5 + (hasHeader ? 25 : 0) + (isCore ? 45 : 0) - dir.split('/').length * 3 };
-  });
-  dirClusters.sort((a, b) => b.score - a.score);
-
-  const selected: T[] = [];
-  for (const cluster of dirClusters) {
-    if (selected.length >= maxFiles) break;
-    const headers = cluster.files.filter((f) => /(\.h|\.hpp|types\.[tj]s|mod\.rs|index\.[tj]sx?)$/i.test(f.path)).slice(0, 5);
-    const impls = cluster.files.filter((f) => !headers.includes(f)).sort((a, b) => a.path.length - b.path.length).slice(0, 9);
-    for (const file of [...headers, ...impls]) {
-      if (selected.length < maxFiles) selected.push(file);
-    }
-  }
-  for (const item of items) {
-    if (selected.length >= maxFiles) break;
-    if (!selected.includes(item)) selected.push(item);
-  }
-  return selected;
 }
 
 async function fetchGitHubSafe(url: string, token?: string, acceptRaw = false, timeoutMs = 12000): Promise<Response> {
@@ -133,7 +88,10 @@ export async function fetchGitHubRepoFiles(
   } else if ((metaRes.status === 403 || metaRes.status === 429) && !token) {
     const fb = await fetchPublicFallbackTreeOrFiles(owner, repo, branchHint, subpath, isAnalyzablePath, selectStratifiedPaths);
     if (!fb) throw new Error(`GitHub API rate limit reached for "${owner}/${repo}". Provide a PAT via "Private Repo" for 5,000 req/hr.`);
-    const files = fb.preloadedFiles ?? (await downloadSelectedFiles(encOwner, encRepo, encodeURIComponent(fb.branch), fb.candidatePaths));
+    const fbBranch = encodeURIComponent(fb.branch);
+    const files = fb.preloadedFiles ?? (await downloadSelectedFiles(encOwner, encRepo, fbBranch, fb.candidatePaths));
+    const extra = fb.preloadedFiles ? [] : missingImportTargets(files, fb.pool ?? [], MAX_CLOSURE_FILES);
+    if (extra.length) files.push(...(await downloadSelectedFiles(encOwner, encRepo, fbBranch, extra.map((path) => ({ path })))));
     const displaySlug = subpath ? `${fullName}/${subpath}` : fullName;
     const modeNote = `Stratified architectural sample (${files.length} modules).`;
     return { repoName: displaySlug, description: fb.description ? `${fb.description} — ${modeNote}` : modeNote, files, isPrivate: false };
@@ -144,18 +102,34 @@ export async function fetchGitHubRepoFiles(
 
   const encBranch = encodeURIComponent(branch);
   let candidatePaths: Array<{ path: string }> = [];
+  let pool: string[] = [];
   let isStratifiedSample = repoSize > 300_000;
 
   if (subpath) {
+    // `<branch>:<path>` is a valid tree-ish, giving a recursive listing of just this folder.
+    const subTreeRes = await fetchGitHubSafe(`https://api.github.com/repos/${encOwner}/${encRepo}/git/trees/${encodeURIComponent(`${branch}:${subpath}`)}?recursive=1`, token);
+    if (subTreeRes.ok) {
+      const d = (await subTreeRes.json()) as { tree: Array<{ path: string; type: string; size?: number }> };
+      const blobs = d.tree
+        .filter((i) => i.type === 'blob' && (i.size ?? 0) < 160_000)
+        .map((i) => ({ path: `${subpath}/${i.path}` }))
+        .filter((i) => isAnalyzablePath(i.path));
+      pool = blobs.map((b) => b.path);
+      candidatePaths = selectStratifiedPaths(blobs, 32, repo);
+    }
+  }
+  if (subpath && candidatePaths.length === 0) {
     const safeSub = subpath.split('/').map(encodeURIComponent).join('/');
     const contentsRes = await fetchGitHubSafe(`https://api.github.com/repos/${encOwner}/${encRepo}/contents/${safeSub}?ref=${encBranch}`, token);
     if (contentsRes.ok) {
       const items = (await contentsRes.json()) as Array<{ path: string; type: string; size?: number }>;
       if (Array.isArray(items)) {
-        candidatePaths = selectStratifiedPaths(items.filter((i) => i.type === 'file' && (i.size ?? 0) < 160_000 && isAnalyzablePath(i.path)), 32);
+        const files = items.filter((i) => i.type === 'file' && (i.size ?? 0) < 160_000 && isAnalyzablePath(i.path));
+        pool = files.map((f) => f.path);
+        candidatePaths = selectStratifiedPaths(files, 32, repo);
       }
     }
-  } else if (repoSize > 300_000) {
+  } else if (!subpath && repoSize > 300_000) {
     const rootRes = await fetchGitHubSafe(`https://api.github.com/repos/${encOwner}/${encRepo}/git/trees/${encBranch}`, token);
     if (rootRes.ok) {
       const rootData = (await rootRes.json()) as { tree: Array<{ path: string; type: string; sha: string }> };
@@ -168,7 +142,8 @@ export async function fetchGitHubRepoFiles(
           return d.tree.filter((i) => i.type === 'blob' && (i.size ?? 0) < 160_000 && isAnalyzablePath(`${dir!.path}/${i.path}`)).map((i) => ({ path: `${dir!.path}/${i.path}` }));
         })
       );
-      candidatePaths = selectStratifiedPaths(subBlobs.flat(), 32);
+      pool = subBlobs.flat().map((b) => b.path);
+      candidatePaths = selectStratifiedPaths(subBlobs.flat(), 32, repo);
     }
   }
 
@@ -178,15 +153,22 @@ export async function fetchGitHubRepoFiles(
       const treeData = (await treeRes.json()) as { truncated?: boolean; tree: Array<{ path: string; type: string; size?: number }> };
       isStratifiedSample = isStratifiedSample || Boolean(treeData.truncated);
       const filtered = treeData.tree.filter((item) => item.type === 'blob' && (item.size ?? 0) < 150_000 && isAnalyzablePath(item.path) && (!subpath || item.path.startsWith(subpath)));
-      candidatePaths = selectStratifiedPaths(filtered, 32);
+      pool = filtered.map((f) => f.path);
+      candidatePaths = selectStratifiedPaths(filtered, 32, repo);
     } else if (!token) {
       const fb = await fetchPublicFallbackTreeOrFiles(owner, repo, branch, subpath, isAnalyzablePath, selectStratifiedPaths);
-      if (fb) candidatePaths = fb.candidatePaths;
+      if (fb) {
+        candidatePaths = fb.candidatePaths;
+        pool = fb.pool ?? [];
+      }
     }
   }
 
   if (candidatePaths.length === 0) throw new Error('No supported source code files (.ts, .js, .py, .rs, .c, .h, .go, .swift, .kt) found.');
   const validFiles = await downloadSelectedFiles(encOwner, encRepo, encBranch, candidatePaths, token);
+  // Pull in the hub modules the sample imports but missed (shared headers, utils, base classes).
+  const extra = missingImportTargets(validFiles, pool, MAX_CLOSURE_FILES);
+  if (extra.length) validFiles.push(...(await downloadSelectedFiles(encOwner, encRepo, encBranch, extra.map((path) => ({ path })), token)));
   const displaySlug = subpath ? `${fullName}/${subpath}` : fullName;
   const modeNote = isStratifiedSample ? `Stratified architectural sample (${validFiles.length} modules).` : `${validFiles.length} source modules inspected${isPrivate ? ' (Private Repo)' : ''}.`;
   return { repoName: displaySlug, description: descriptionText ? `${descriptionText} — ${modeNote}` : modeNote, files: validFiles, isPrivate };

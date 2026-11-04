@@ -1,16 +1,50 @@
-import {
-  AuditFinding,
-  AuditSeverity,
-  DependencyEdge,
-  RepoAnalysisResult,
-  RepoFileInput,
-  RepoNode,
-} from '../types/atlas';
+import { AuditFinding, AuditSeverity, DependencyEdge, RepoAnalysisResult, RepoFileInput, RepoNode } from '../types/atlas';
 import { runSecurityAudit } from './securityAuditor';
 import { runPerformanceAudit } from './performanceAuditor';
 import { compileAgentsMdBlueprint } from './contextCompiler';
-import { classifyLayer, extractImports, resolveImportToFile } from './importResolver';
-import { computeAccurateScores, detectGraphCyclesAndInversions } from './graphMetrics';
+import { classifyLayerHint } from './layerClassifier';
+import { extractImportsDetailed } from './importExtractor';
+import { resolveImportToFile } from './importResolver';
+import { computeAccurateScores } from './graphMetrics';
+import { detectGraphCyclesAndInversions } from './cycleDetector';
+import { countCodeLines, largeFileLabel, largeFileLimit } from './fileSize';
+import { inferStackTags } from './stackTags';
+import { goIntraPackageEdges } from './goPackageEdges';
+import { createTypeElisionChecker } from './typeElision';
+
+const MAIN_SIGNAL: Array<[RegExp, RegExp]> = [
+  [/\.py$/, /^if\s+__name__\s*==\s*['"]__main__['"]/m],
+  [/\.go$/, /^package\s+main\b/m],
+  [/\.rs$/, /^\s*(?:pub\s+)?(?:async\s+)?fn\s+main\s*\(/m],
+  [/\.(c|cc|cpp|m|mm)$/, /^\s*(?:int|void)\s+main\s*\(/m],
+  [/\.(swift|kt|dart)$/, /@main\b|\bfun\s+main\s*\(|\bvoid\s+main\s*\(/],
+];
+
+/** Runnable-entry heuristic for files without a path-based layer signal. */
+function looksLikeEntryPoint(path: string, content: string): boolean {
+  const rule = MAIN_SIGNAL.find(([ext]) => ext.test(path));
+  if (rule) return rule[1].test(content);
+  // JS/TS and others: a top-level module nobody imports is an entry (bin script, root module).
+  return path.split('/').length <= 2 || /^#!/.test(content);
+}
+
+const SEVERITY_RANK: Record<AuditSeverity | 'clean', number> = { critical: 4, high: 3, medium: 2, low: 1, clean: 0 };
+
+function largeFileFinding(path: string, lines: string[], codeLines: number, limit: number): AuditFinding {
+  return {
+    id: `arch-god-${path}`,
+    ruleId: 'ARCH-001',
+    title: `Oversized "God Module" (${codeLines} code lines > ${limit} limit)`,
+    category: 'architecture',
+    severity: codeLines > limit * 2 ? 'high' : 'medium',
+    filePath: path,
+    lineNumber: 1,
+    codeSnippet: lines.slice(0, 5).join('\n').trim(),
+    explanation: `\`${path}\` has ${codeLines} lines of code (limit for ${largeFileLabel(path)}: ${limit}). Large modules mix responsibilities, inflate AI context usage and attract merge conflicts.`,
+    remediation: 'Split it by responsibility: presentational pieces, state/hooks, and data access or pure helpers in their own modules.',
+    aiFixPrompt: `Refactor oversized module \`${path}\` (${codeLines} code lines, ARCH-001) into focused sub-modules, each well under ${limit} code lines.`,
+  };
+}
 
 export function analyzeRepository(
   repoName: string,
@@ -23,52 +57,34 @@ export function analyzeRepository(
   const secFindings = runSecurityAudit(files);
   const perfFindings = runPerformanceAudit(files);
   const archFindings: AuditFinding[] = [];
-
   const nodesMap = new Map<string, RepoNode>();
-  const rawEdges: DependencyEdge[] = [];
+  const pathClassified = new Set<string>();
+  const edges: DependencyEdge[] = [];
 
   for (const file of files) {
     const lines = file.content.split('\n');
-    const loc = lines.length;
-    const tokens = Math.max(1, Math.round(file.content.length / 4));
     const parts = file.path.split('/');
     const base = parts[parts.length - 1] ?? file.path;
     const hasDuplicateBase = allPaths.some((p) => p !== file.path && p.endsWith(`/${base}`));
-    const name = hasDuplicateBase && parts.length >= 2 ? `${parts[parts.length - 2]}/${base}` : base;
-    const exportsCount = (
-      file.content.match(
-        /\b(export\s+(const|function|class|interface|type|default)|pub\s+(fn|struct|enum|trait|mod)|(?:void|int|u64|bool)\s+\w+\s*\()/g
-      ) ?? []
-    ).length;
-    const isGodFile = loc > 220;
-
-    if (isGodFile) {
-      archFindings.push({
-        id: `arch-god-${file.path}`,
-        ruleId: 'ARCH-001',
-        title: `Oversized "God Module" (${loc} LOC > 220 LOC Cap)`,
-        category: 'architecture',
-        severity: loc > 320 ? 'high' : 'medium',
-        filePath: file.path,
-        lineNumber: 1,
-        codeSnippet: lines.slice(0, 5).join('\n').trim(),
-        explanation: `\`${file.path}\` mixes too many responsibilities (${loc} lines), inflating AI context usage and increasing merge conflicts.`,
-        remediation:
-          'Split stateless UI primitives into `components/ui/`, state logic into `hooks/`, and data calls into `services/`.',
-        aiFixPrompt: `Refactor oversized module \`${file.path}\` (${loc} lines, ARCH-001) into focused sub-modules under 200 lines each.`,
-      });
-    }
+    const codeLines = countCodeLines(file.content, file.path);
+    const sizeLimit = largeFileLimit(file.path);
+    const isGodFile = codeLines > sizeLimit;
+    const hint = classifyLayerHint(file.path);
+    if (hint) pathClassified.add(file.path);
+    if (isGodFile) archFindings.push(largeFileFinding(file.path, lines, codeLines, sizeLimit));
 
     nodesMap.set(file.path, {
       id: file.path,
       path: file.path,
-      name,
-      layer: classifyLayer(file.path),
-      linesOfCode: loc,
-      estimatedTokens: tokens,
+      name: hasDuplicateBase && parts.length >= 2 ? `${parts[parts.length - 2]}/${base}` : base,
+      layer: hint ?? 'service',
+      linesOfCode: lines.length,
+      codeLines,
+      sizeLimit,
+      estimatedTokens: Math.max(1, Math.round(file.content.length / 4)),
       imports: [],
       importedBy: [],
-      exportsCount,
+      exportsCount: (file.content.match(/\b(export\s+(const|function|class|interface|type|default|enum|async)|pub\s+(fn|struct|enum|trait|mod)|^def\s+\w+|^class\s+\w+|^func\s+[A-Z]\w*)/gm) ?? []).length,
       isGodFile,
       inCycle: false,
       isOrphan: false,
@@ -78,89 +94,67 @@ export function analyzeRepository(
     });
   }
 
+  const importsOnlyTypes = createTypeElisionChecker(files);
   for (const file of files) {
-    const specs = extractImports(file.content, file.path);
-    const sourceNode = nodesMap.get(file.path)!;
-    for (const spec of specs) {
+    const source = nodesMap.get(file.path)!;
+    for (const { spec, typeOnly: declaredTypeOnly, line, names } of extractImportsDetailed(file.content, file.path)) {
       const resolved = resolveImportToFile(file.path, spec, allPaths, files);
-      if (resolved && resolved !== file.path && !sourceNode.imports.includes(resolved)) {
-        sourceNode.imports.push(resolved);
-        nodesMap.get(resolved)?.importedBy.push(file.path);
-        rawEdges.push({ from: file.path, to: resolved, isCircular: false });
+      if (!resolved || resolved === file.path) continue;
+      const typeOnly = declaredTypeOnly || importsOnlyTypes(file.path, names, resolved);
+      const existing = edges.find((e) => e.from === file.path && e.to === resolved);
+      if (existing) {
+        // A value import anywhere makes the whole edge a runtime edge (and points findings at that line).
+        if (!typeOnly && existing.typeOnly) {
+          existing.typeOnly = false;
+          existing.line = line;
+        }
+        continue;
       }
+      source.imports.push(resolved);
+      nodesMap.get(resolved)?.importedBy.push(file.path);
+      edges.push({ from: file.path, to: resolved, isCircular: false, typeOnly, line });
     }
   }
 
-  const circularCount = detectGraphCyclesAndInversions(nodesMap, rawEdges, archFindings);
+  for (const { from, to, line } of goIntraPackageEdges(files)) {
+    if (edges.some((e) => e.from === from && e.to === to)) continue;
+    nodesMap.get(from)!.imports.push(to);
+    nodesMap.get(to)!.importedBy.push(from);
+    edges.push({ from, to, isCircular: false, typeOnly: false, line });
+  }
+
+  // Files without a path signal: unreferenced modules that look runnable are entry points,
+  // everything else is internal logic (a partial sample often misses a module's importers).
+  for (const node of nodesMap.values()) {
+    if (!pathClassified.has(node.id)) node.layer = node.importedBy.length === 0 && looksLikeEntryPoint(node.path, node.content) ? 'entry' : 'service';
+  }
+
+  const circularCount = detectGraphCyclesAndInversions(nodesMap, edges, archFindings, pathClassified);
   const allFindings = [...secFindings, ...perfFindings, ...archFindings];
-  const severityRank: Record<AuditSeverity | 'clean', number> = {
-    critical: 4,
-    high: 3,
-    medium: 2,
-    low: 1,
-    clean: 0,
-  };
 
   for (const node of nodesMap.values()) {
-    node.isOrphan =
-      node.importedBy.length === 0 &&
-      node.imports.length === 0 &&
-      node.layer !== 'entry' &&
-      node.layer !== 'config';
+    node.isOrphan = node.importedBy.length === 0 && node.imports.length === 0 && node.layer !== 'entry' && node.layer !== 'config';
     const fileFindings = allFindings.filter((f) => f.filePath === node.path);
     node.issueCount = fileFindings.length;
     for (const f of fileFindings) {
-      if (severityRank[f.severity] > severityRank[node.maxSeverity]) {
-        node.maxSeverity = f.severity;
-      }
+      if (SEVERITY_RANK[f.severity] > SEVERITY_RANK[node.maxSeverity]) node.maxSeverity = f.severity;
     }
   }
 
   const nodes = Array.from(nodesMap.values());
   const godFilesCount = nodes.filter((n) => n.isGodFile).length;
-  const scores = computeAccurateScores(
-    nodes,
-    secFindings,
-    perfFindings,
-    archFindings,
-    circularCount,
-    godFilesCount
-  );
-
-  const { agentsMdBlueprint, masterFixPrompt } = compileAgentsMdBlueprint(
-    repoName,
-    description,
-    nodes,
-    rawEdges,
-    allFindings,
-    scores
-  );
-
-  const inferredTags =
-    meta?.stackTags ??
-    Array.from(
-      new Set(
-        [
-          files.some((f) => f.path.endsWith('.tsx') || f.path.endsWith('.ts')) ? 'TypeScript' : null,
-          files.some((f) => f.path.endsWith('.rs')) ? 'Rust' : null,
-          files.some((f) => f.path.endsWith('.c') || f.path.endsWith('.h')) ? 'C11 / Systems' : null,
-          files.some((f) => f.path.endsWith('manifest.json')) ? 'Manifest V3' : null,
-          files.some((f) => f.path.endsWith('tauri.conf.json')) ? 'Tauri Desktop' : null,
-          files.some((f) => f.path.includes('supabase')) ? 'Supabase' : null,
-          files.some((f) => f.path.includes('app/')) ? 'App Router' : 'Modular AST',
-        ].filter((t): t is string => Boolean(t))
-      )
-    );
+  const scores = computeAccurateScores(nodes, secFindings, perfFindings, archFindings, circularCount, godFilesCount);
+  const { agentsMdBlueprint, masterFixPrompt } = compileAgentsMdBlueprint(repoName, description, nodes, edges, allFindings, scores);
 
   return {
     repoName,
     repoSlug: meta?.repoSlug ?? repoName.toLowerCase().replace(/\s+/g, '-'),
-    stackTags: inferredTags,
+    stackTags: meta?.stackTags ?? inferStackTags(files),
     description,
     sourceLabel,
     analyzedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     nodes,
-    edges: rawEdges,
+    edges,
     findings: allFindings,
     scores,
     agentsMdBlueprint,

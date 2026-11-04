@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle2, Sparkles, X } from 'lucide-react';
+import { ArrowUpRight, X } from 'lucide-react';
 import { WorkspaceTab } from './TopHeader';
 
 interface OnboardingTourModalProps {
@@ -10,11 +10,10 @@ interface OnboardingTourModalProps {
 }
 
 interface TourStep {
-  stepNumber: string;
-  badge: string;
+  id: string;
   title: string;
   description: string;
-  highlights: Array<{ label: string; detail: string }>;
+  points: string[];
   ctaLabel: string;
   presetId?: string;
   tab: WorkspaceTab;
@@ -22,65 +21,56 @@ interface TourStep {
 
 const TOUR_STEPS: TourStep[] = [
   {
-    stepNumber: '01',
-    badge: 'Universal Stack Compatibility',
-    title: 'Analyze Full-Stack SaaS, Chrome Extensions, Desktop Apps & Kernel Codebases',
+    id: 'stacks',
+    title: 'Works across stacks',
     description:
-      'RepoAtlas natively resolves dependencies and audits security/performance across 5 major software archetypes — from Next.js + Supabase web apps to Manifest V3 extensions, Tauri/Electron desktop overlays, mobile apps, and C11/Rust kernel subsystems.',
-    highlights: [
-      { label: 'Full-Stack Web & SaaS', detail: 'Next.js, React, Vite, Supabase, SQL & /api/* routes' },
-      { label: 'Chrome Extensions (MV3)', detail: 'manifest.json service workers, popups & <all_urls> checks' },
-      { label: 'Desktop & Overlay (Tauri / Electron)', detail: 'TypeScript invoke() → Rust #[tauri::command] & CSP sandbox' },
-      { label: 'Systems & Mega-Repos (C / Rust)', detail: 'Stratified sampling + #include & use crate:: AST edges' },
+      'RepoAtlas maps web apps, Chrome extensions, desktop apps and C or Rust codebases. Load a preset to see it on a real project.',
+    points: [
+      'Next.js, Vite and Supabase projects',
+      'Manifest V3 extensions and Tauri or Electron apps',
+      'Large C and Rust repositories',
     ],
-    ctaLabel: 'Load Tauri Desktop Preset',
+    ctaLabel: 'Load Tauri desktop preset',
     presetId: 'tauri-desktop-overlay',
     tab: 'graph',
   },
   {
-    stepNumber: '02',
-    badge: 'Step 01 · Architecture Map',
-    title: 'Trace Cross-Boundary Dependencies, Cycles & >220 LOC God Modules',
+    id: 'graph',
+    title: 'Read the architecture map',
     description:
-      'Every file is classified into 6 architectural layers (Entry → Feature → UI → Service → Data → Config). Click any module node to highlight its upstream callers and downstream imports, or double-click to inspect line-numbered source code.',
-    highlights: [
-      { label: 'Cross-Language Edges', detail: 'Connects manifest.json, fetch("/api/..."), and Tauri invoke() calls' },
-      { label: 'Circular Dependency Detection', detail: 'Tarjan DFS highlights bidirectional import cycles in red' },
-      { label: 'Modularity Cap (>220 LOC)', detail: 'Flags oversized monolithic files that bloat AI context windows' },
-      { label: 'Interactive Canvas Zoom', detail: 'Filter by Issues, Cycles, or >220 LOC and zoom/fit the topology' },
+      'Each file is placed in one of six layers. Click a module to trace its imports and callers, or double-click to open its source.',
+    points: [
+      'Import cycles are highlighted',
+      'Oversized files are flagged (limits depend on the language)',
+      'Filter by issues, cycles or file size',
     ],
-    ctaLabel: 'Explore Architecture Map',
+    ctaLabel: 'Open graph',
     tab: 'graph',
   },
   {
-    stepNumber: '03',
-    badge: 'Step 02 · Security & Perf Audit',
-    title: 'Catch Credentials, SQLi, XSS, IPC Escapes & N+1 Loops Before Shipping',
+    id: 'audit',
+    title: 'Review the audit',
     description:
-      'The static auditor runs 14 specialized rules across web, browser extension, desktop, and systems code. Each finding pinpoints the exact file and line number with a one-click AI remediation prompt.',
-    highlights: [
-      { label: 'Web & API Security (SEC-001..005)', detail: 'Service-role JWTs, NEXT_PUBLIC_ leaks, XSS, SQLi & wildcard CORS' },
-      { label: 'Extension & Desktop (SEC-007..008)', detail: 'MV3 <all_urls> over-permissioning & disabled Tauri/Electron CSP' },
-      { label: 'Systems & Kernel (SEC-006 / PERF-006)', detail: 'Unbounded C strcpy/sprintf, CPU mdelay() & undocumented unsafe' },
-      { label: 'Async Waterfalls & N+1 (PERF-001..005)', detail: 'Sequential awaits, loop queries, barrel files & unbounded selects' },
+      'Fourteen static rules check for leaked secrets, injection, unsafe IPC and slow query patterns. Each finding points to the exact line.',
+    points: [
+      'Web and API security',
+      'Extension and desktop permissions',
+      'Async waterfalls and N+1 queries',
     ],
-    ctaLabel: 'Inspect Security & Perf Audit',
+    ctaLabel: 'Open audit',
     presetId: 'vibe-saas-billing',
     tab: 'audit',
   },
   {
-    stepNumber: '04',
-    badge: 'Step 03 · AGENTS.md & AI Fix',
-    title: 'Compile Tailored AGENTS.md Guardrails & One-Shot Refactoring Prompts',
+    id: 'handoff',
+    title: 'Hand off to your agent',
     description:
-      'Turn static findings into immediate fixes. Export a repository-specific AGENTS.md architecture specification or copy the Master Refactoring Prompt directly into Claude Code, Cursor, or Windsurf.',
-    highlights: [
-      { label: 'AGENTS.md Context Compiler', detail: 'Generates layer rules, file-size caps & security invariants' },
-      { label: 'Master AI Fix Prompt', detail: 'Packages every file path, line number & required fix in one prompt' },
-      { label: 'Command Palette (⌘K / Ctrl+K)', detail: 'Jump to any module, audit rule, or workspace view in milliseconds' },
-      { label: 'Shareable Deep-Link URLs', detail: 'Every preset, active tab & filter state syncs to the browser URL' },
+      'Export an AGENTS.md written for this repository, or copy a single prompt that lists every fix.',
+    points: [
+      'Press Ctrl K or ⌘K to search anywhere',
+      'Presets, tabs and filters are kept in the URL',
     ],
-    ctaLabel: 'Open AGENTS.md Compiler',
+    ctaLabel: 'Open AGENTS.md export',
     tab: 'blueprint',
   },
 ];
@@ -113,72 +103,74 @@ export function OnboardingTourModal({ isOpen, onClose, onSelectPreset, onSelectT
   const current = TOUR_STEPS[stepIdx];
   const isLast = stepIdx === TOUR_STEPS.length - 1;
 
+  function runCta() {
+    if (current.presetId) onSelectPreset(current.presetId);
+    onSelectTab(current.tab);
+    onClose();
+  }
+
   return (
-    <dialog ref={dialogRef} closedby="any" aria-labelledby="tour-modal-title" onClose={onClose} className="atlas-dialog" style={{ maxWidth: 'min(46rem, 94vw)' }}>
-      <div className="p-5 sm:p-6 space-y-5">
-        <div className="flex items-center justify-between gap-3 pb-3.5" style={{ borderBottom: '1px solid var(--border-hairline)' }}>
-          <div className="flex items-center gap-2">
-            <span className="font-mono-code text-xs px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5" style={{ backgroundColor: 'var(--accent-brand-soft)', color: 'var(--accent-brand)' }}>
-              <Sparkles size={13} aria-hidden="true" />
-              <span>Quick Tour · {stepIdx + 1}/{TOUR_STEPS.length}</span>
-            </span>
-            <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-muted)' }}>{current.badge}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={onClose} className="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer" style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-hairline)' }}>
-              Skip Tutorial
-            </button>
-            <button type="button" onClick={onClose} aria-label="Close tutorial" className="p-1.5 rounded-lg cursor-pointer" style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
-              <X size={15} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-4 gap-2" role="tablist" aria-label="Tutorial steps">
-          {TOUR_STEPS.map((s, idx) => {
-            const active = idx === stepIdx;
-            return (
-              <button key={s.stepNumber} type="button" role="tab" aria-selected={active} onClick={() => setStepIdx(idx)} className="text-left p-2 rounded-lg cursor-pointer transition-all flex items-center justify-between text-xs font-mono-code font-semibold" style={{ backgroundColor: active ? 'var(--accent-brand-soft)' : 'var(--bg-elevated)', border: active ? '1px solid var(--accent-brand)' : '1px solid var(--border-hairline)', color: active ? 'var(--accent-brand)' : 'var(--text-muted)' }}>
-                <span>STEP {s.stepNumber}</span>
-                {idx < stepIdx && <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400" aria-hidden="true" />}
+    <dialog ref={dialogRef} closedby="any" aria-labelledby="tour-modal-title" onClose={onClose} className="atlas-dialog" style={{ maxWidth: 'min(32rem, 94vw)' }}>
+      <header className="flex items-center justify-between gap-3 px-5 pt-4">
+        <div className="flex items-center gap-3">
+          <span className="text-muted text-xs tabular-nums" aria-live="polite">
+            Step {stepIdx + 1} of {TOUR_STEPS.length}
+          </span>
+          <div className="flex items-center" role="group" aria-label="Tutorial steps">
+            {TOUR_STEPS.map((s, idx) => (
+              <button
+                key={s.id}
+                type="button"
+                aria-label={`Go to step ${idx + 1}: ${s.title}`}
+                aria-current={idx === stepIdx ? 'step' : undefined}
+                onClick={() => setStepIdx(idx)}
+                className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full"
+              >
+                <span
+                  className="block h-1.5 rounded-full"
+                  style={{
+                    width: idx === stepIdx ? 14 : 6,
+                    background: idx <= stepIdx ? 'var(--text-primary)' : 'var(--border-strong)',
+                    transition: 'width var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out)',
+                  }}
+                />
               </button>
-            );
-          })}
-        </div>
-
-        <div className="space-y-2.5">
-          <h2 id="tour-modal-title" className="text-lg sm:text-xl font-bold tracking-tight">{current.title}</h2>
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{current.description}</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {current.highlights.map((item) => (
-            <div key={item.label} className="p-3 rounded-xl space-y-1" style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-hairline)' }}>
-              <div className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{item.label}</div>
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item.detail}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3.5" style={{ borderTop: '1px solid var(--border-hairline)' }}>
-          <button type="button" onClick={() => { if (current.presetId) onSelectPreset(current.presetId); onSelectTab(current.tab); onClose(); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer" style={{ backgroundColor: 'var(--accent-brand-soft)', color: 'var(--accent-brand)', border: '1px solid var(--border-strong)' }}>
-            {current.ctaLabel} ↗
-          </button>
-
-          <div className="flex items-center gap-2">
-            <button type="button" disabled={stepIdx === 0} onClick={() => setStepIdx((i) => Math.max(0, i - 1))} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer disabled:opacity-40" style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-hairline)' }}>
-              <ArrowLeft size={13} aria-hidden="true" />
-              <span>Previous</span>
-            </button>
-
-            <button type="button" autoFocus onClick={() => (isLast ? onClose() : setStepIdx((i) => i + 1))} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white cursor-pointer" style={{ backgroundColor: 'var(--accent-brand)' }}>
-              <span>{isLast ? 'Start Exploring' : 'Next Step'}</span>
-              {isLast ? <CheckCircle2 size={13} aria-hidden="true" /> : <ArrowRight size={13} aria-hidden="true" />}
-            </button>
+            ))}
           </div>
         </div>
+        <button type="button" onClick={onClose} aria-label="Close tutorial" className="btn btn-ghost btn-icon btn-sm">
+          <X size={16} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </header>
+
+      <div key={current.id} className="atlas-fade-in space-y-3 px-5 pb-5 pt-3">
+        <h2 id="tour-modal-title" className="text-lg font-semibold tracking-tight">{current.title}</h2>
+        <p className="text-secondary leading-relaxed">{current.description}</p>
+        <ul className="space-y-1.5 pt-1">
+          {current.points.map((point) => (
+            <li key={point} className="text-secondary tone-neutral flex items-center gap-2.5 text-[0.8125rem]">
+              <span className="tone-dot" aria-hidden="true" />
+              <span>{point}</span>
+            </li>
+          ))}
+        </ul>
+        <button type="button" onClick={runCta} className="btn btn-ghost btn-sm -ml-2.5">
+          <span>{current.ctaLabel}</span>
+          <ArrowUpRight size={14} strokeWidth={1.75} aria-hidden="true" />
+        </button>
       </div>
+
+      <footer className="divider-t flex items-center justify-between gap-3 px-5 py-3">
+        <button type="button" onClick={onClose} className="btn btn-ghost">Skip</button>
+        <div className="flex items-center gap-2">
+          <button type="button" disabled={stepIdx === 0} onClick={() => setStepIdx((i) => Math.max(0, i - 1))} className="btn btn-secondary">
+            Back
+          </button>
+          <button type="button" autoFocus onClick={() => (isLast ? onClose() : setStepIdx((i) => i + 1))} className="btn btn-primary min-w-[4.5rem]">
+            {isLast ? 'Done' : 'Next'}
+          </button>
+        </div>
+      </footer>
     </dialog>
   );
 }
