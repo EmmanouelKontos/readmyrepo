@@ -50,7 +50,7 @@ export function RepoSourceBar({
                   type="button"
                   onClick={() => onSelectPinned?.(pin)}
                   aria-current={isCurrent ? 'true' : undefined}
-                  className="inline-flex items-center gap-1.5 h-7 pl-2 pr-1 rounded-md font-mono-code text-[0.75rem] cursor-pointer transition-colors hover:bg-[var(--bg-elevated)]"
+                  className="inline-flex items-center gap-1.5 h-7 pl-2 pr-1 rounded-md font-mono-code text-[0.8125rem] cursor-pointer transition-colors hover:bg-[var(--bg-elevated)]"
                   style={{ color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                   title={`Open ${pin.repoName}`}
                 >
@@ -83,7 +83,7 @@ export function RepoSourceBar({
                 value={githubInput}
                 onChange={(e) => setGithubInput(e.target.value)}
                 placeholder="Analyze another repo…"
-                className="font-mono-code text-[0.8125rem]"
+                className="font-mono-code text-[0.875rem]"
                 autoComplete="off"
                 spellCheck={false}
               />
@@ -117,7 +117,7 @@ export function RepoSourceBar({
       </div>
 
       <div hidden={!showToken} className="atlas-collapsible surface p-3 flex flex-col md:flex-row md:items-center gap-3">
-        <p className="flex-1 text-[0.8125rem] text-secondary">
+        <p className="flex-1 text-[0.875rem] text-secondary">
           GitHub access token for private repositories (read-only is enough). It stays in this tab and is sent only to{' '}
           <span className="code-inline">api.github.com</span>.
         </p>
@@ -131,7 +131,7 @@ export function RepoSourceBar({
             value={githubToken}
             onChange={(e) => setGithubToken(e.target.value)}
             placeholder="github_pat_…"
-            className="font-mono-code text-[0.8125rem]"
+            className="font-mono-code text-[0.875rem]"
           />
         </div>
         {hasToken && (

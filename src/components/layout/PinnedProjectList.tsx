@@ -21,16 +21,16 @@ export function PinnedProjectList({ pinnedProjects, onSelectPinned, onUnpinProje
               className="flex-1 min-w-0 flex items-center gap-3 px-4 py-3 text-left cursor-pointer rounded-[9px] transition-colors hover:bg-[var(--bg-elevated)]"
             >
               <span className={`tone-dot ${scoreTone(pin.scores.overall)}`} aria-hidden="true" />
-              <span className="font-mono-code text-[0.8125rem] truncate flex-1">{pin.slug}</span>
-              <span className="font-mono-code text-[0.75rem] text-muted tabular-nums hidden sm:inline">
+              <span className="font-mono-code text-[0.875rem] truncate flex-1">{pin.slug}</span>
+              <span className="font-mono-code text-[0.8125rem] text-muted tabular-nums hidden sm:inline">
                 {pin.findingsCount} {pin.findingsCount === 1 ? 'finding' : 'findings'}
               </span>
               {delta !== 0 && (
-                <span className={`font-mono-code text-[0.75rem] tabular-nums tone-text ${delta > 0 ? 'tone-success' : 'tone-danger'}`}>
+                <span className={`font-mono-code text-[0.8125rem] tabular-nums tone-text ${delta > 0 ? 'tone-success' : 'tone-danger'}`}>
                   {formatDelta(delta)}
                 </span>
               )}
-              <span className="font-mono-code text-[0.8125rem] tabular-nums w-7 text-right">{pin.scores.overall}</span>
+              <span className="font-mono-code text-[0.875rem] tabular-nums w-7 text-right">{pin.scores.overall}</span>
             </button>
             <button
               type="button"

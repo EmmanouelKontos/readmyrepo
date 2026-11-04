@@ -31,7 +31,7 @@ function ItemContent({ item }: { item: PaletteItem }) {
     return (
       <>
         <FileCode {...ICON} className="text-muted shrink-0" />
-        <span className="font-mono-code min-w-0 flex-1 truncate text-[0.8125rem]">{item.node.path}</span>
+        <span className="font-mono-code min-w-0 flex-1 truncate text-[0.875rem]">{item.node.path}</span>
         <span className="count">{item.node.linesOfCode} LOC</span>
         <SeverityBadge severity={item.node.maxSeverity} />
       </>
@@ -42,7 +42,7 @@ function ItemContent({ item }: { item: PaletteItem }) {
       <>
         <ShieldAlert {...ICON} className="text-muted shrink-0" />
         <span className="min-w-0 flex-1 truncate">
-          <span className="font-mono-code text-muted mr-2 text-xs">{item.finding.ruleId}</span>
+          <span className="font-mono-code text-muted mr-2 text-[0.8125rem]">{item.finding.ruleId}</span>
           {item.finding.title}
         </span>
         <SeverityBadge severity={item.finding.severity} />
@@ -160,7 +160,7 @@ export function CommandPalette({ isOpen, onClose, nodes, findings, onSelectNode,
           onChange={(e) => { setQuery(e.target.value); setActiveIdx(0); }}
           onKeyDown={handleKeyDown}
           placeholder="Search modules, rules or views"
-          className="h-14 w-full bg-transparent text-[0.9375rem] outline-none placeholder:text-[var(--text-muted)] focus-visible:outline-none"
+          className="h-14 w-full bg-transparent text-[1rem] outline-none placeholder:text-[var(--text-muted)] focus-visible:outline-none"
           autoFocus
         />
         <button type="button" aria-label="Close command palette" onClick={() => dialogRef.current?.close()} className="kbd shrink-0 cursor-pointer">Esc</button>
@@ -189,7 +189,7 @@ export function CommandPalette({ isOpen, onClose, nodes, findings, onSelectNode,
         })}
       </div>
 
-      <div className="divider-t text-muted flex items-center gap-4 px-4 py-2.5 text-xs">
+      <div className="divider-t text-muted flex items-center gap-4 px-4 py-2.5 text-[0.8125rem]">
         <span className="flex items-center gap-1.5"><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
         <span className="flex items-center gap-1.5"><kbd>↵</kbd> Open</span>
         <span className="flex items-center gap-1.5"><kbd>Esc</kbd> Close</span>

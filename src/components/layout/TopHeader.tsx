@@ -49,13 +49,13 @@ export function TopHeader({
             title="Back to start"
           >
             <RepoAtlasLogo size={24} />
-            <span className="font-semibold tracking-tight text-[0.9375rem]">RepoAtlas</span>
+            <span className="font-semibold tracking-tight text-[1rem]">RepoAtlas</span>
           </button>
 
           {repoSlug && (
             <div className="hidden sm:flex items-center gap-1 min-w-0 atlas-fade-in">
               <span className="text-muted select-none" aria-hidden="true">/</span>
-              <span className="font-mono-code text-[0.8125rem] truncate max-w-[18rem]" title={repoSlug}>
+              <span className="font-mono-code text-[0.875rem] truncate max-w-[18rem]" title={repoSlug}>
                 {repoSlug}
               </span>
               {onResetToHome && (
@@ -99,7 +99,7 @@ export function TopHeader({
             aria-label="Search modules and findings"
           >
             <Search size={14} strokeWidth={1.75} aria-hidden="true" />
-            <span className="hidden lg:inline text-[0.8125rem] pr-6">Search</span>
+            <span className="hidden lg:inline text-[0.875rem] pr-6">Search</span>
             <kbd>⌘K</kbd>
           </button>
           <button type="button" onClick={onOpenTour} className="btn btn-ghost btn-icon" aria-label="Open the quick tour" title="Quick tour">

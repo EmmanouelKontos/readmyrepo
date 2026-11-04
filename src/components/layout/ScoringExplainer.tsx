@@ -22,7 +22,7 @@ export function ScoringExplainer() {
       <button
         type="button"
         onClick={() => dialogRef.current?.showModal()}
-        className="inline-flex items-center gap-1 text-[0.75rem] text-muted underline underline-offset-2 cursor-pointer hover:text-[var(--text-primary)]"
+        className="inline-flex items-center gap-1 text-[0.8125rem] text-muted underline underline-offset-2 cursor-pointer hover:text-[var(--text-primary)]"
       >
         <Info size={12} strokeWidth={1.75} aria-hidden="true" />
         How is this scored?
@@ -36,7 +36,7 @@ export function ScoringExplainer() {
           </button>
         </header>
 
-        <div className="space-y-5 px-5 pb-5 pt-3 text-[0.8125rem] text-secondary leading-relaxed">
+        <div className="space-y-5 px-5 pb-5 pt-3 text-[0.875rem] text-secondary leading-relaxed">
           <p>
             Every score starts at <strong className="text-primary">100</strong>. Each problem found takes points away: serious problems
             cost the most (a critical one up to 24 points), minor ones only a few. Repeats of the same kind of problem cost less each time,
@@ -67,7 +67,7 @@ export function ScoringExplainer() {
             </ul>
           </div>
 
-          <p className="text-muted text-[0.75rem]">
+          <p className="text-muted text-[0.8125rem]">
             Oversized files count by how much of the code they make up, and imports that only describe types are ignored when looking for
             loops. Large repositories are scanned as a sample of their most important files. AI context size is not a score: it estimates
             how many tokens (about 4 characters each) an AI assistant reads to load these files.

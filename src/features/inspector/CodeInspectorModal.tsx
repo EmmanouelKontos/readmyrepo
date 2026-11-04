@@ -20,7 +20,7 @@ const FLAGGED_ROW = { background: 'color-mix(in srgb, var(--tone-danger) 8%, tra
 
 function CodeLines({ lines, flagged }: { lines: string[]; flagged: Set<number> }) {
   return (
-    <div tabIndex={0} aria-label="Source code" className="font-mono-code max-h-[24rem] overflow-auto rounded-[8px] py-2 text-[12.5px] leading-relaxed" style={CODE_BOX}>
+    <div tabIndex={0} aria-label="Source code" className="font-mono-code max-h-[24rem] overflow-auto rounded-[8px] py-2 text-[13.5px] leading-relaxed" style={CODE_BOX}>
       {lines.map((line, idx) => {
         const lineNo = idx + 1;
         const isFlagged = flagged.has(lineNo);
@@ -117,10 +117,10 @@ export function CodeInspectorModal({ node, findings, onApplyFileChange, onClose 
               <FileCode {...ICON} size={16} className="text-muted mt-0.5 shrink-0" />
               <div className="min-w-0 space-y-0.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 id={titleId} className="font-mono-code truncate text-[0.875rem] font-semibold">{node.path}</h2>
+                  <h2 id={titleId} className="font-mono-code truncate text-[0.9375rem] font-semibold">{node.path}</h2>
                   <SeverityBadge severity={node.maxSeverity} />
                 </div>
-                <p className="text-muted text-xs tabular-nums">
+                <p className="text-muted text-[0.8125rem] tabular-nums">
                   {node.linesOfCode} lines · ~{node.estimatedTokens} tokens · {fileFindings.length} {fileFindings.length === 1 ? 'finding' : 'findings'}
                 </p>
               </div>
@@ -132,7 +132,7 @@ export function CodeInspectorModal({ node, findings, onApplyFileChange, onClose 
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
             {fixAppliedBanner && (
-              <div role="status" className="tone-success tone-callout atlas-fade-in flex items-center gap-2 px-3 py-2 text-[0.8125rem]">
+              <div role="status" className="tone-success tone-callout atlas-fade-in flex items-center gap-2 px-3 py-2 text-[0.875rem]">
                 <CheckCircle2 {...ICON} className="tone-text shrink-0" /><span>{fixAppliedBanner}</span>
               </div>
             )}
@@ -144,10 +144,10 @@ export function CodeInspectorModal({ node, findings, onApplyFileChange, onClose 
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <SeverityBadge severity={f.severity} />
-                        <span className="text-[0.8125rem] font-medium">{f.title}</span>
-                        <span className="font-mono-code text-muted text-xs">{f.ruleId} · line {f.lineNumber}</span>
+                        <span className="text-[0.875rem] font-medium">{f.title}</span>
+                        <span className="font-mono-code text-muted text-[0.8125rem]">{f.ruleId} · line {f.lineNumber}</span>
                       </div>
-                      <p className="text-secondary text-[0.8125rem]"><InlineCodeText text={f.remediation} /></p>
+                      <p className="text-secondary text-[0.875rem]"><InlineCodeText text={f.remediation} /></p>
                     </div>
                     <button type="button" onClick={() => copyFindingPrompt(f)} className="btn btn-ghost btn-sm shrink-0" aria-live="polite">
                       {copiedId === f.id ? <Check {...ICON} className="tone-success tone-text" /> : <Copy {...ICON} />}
@@ -168,7 +168,7 @@ export function CodeInspectorModal({ node, findings, onApplyFileChange, onClose 
                 )}
               </div>
               {isEditing ? (
-                <textarea value={draftCode} onChange={(e) => setDraftCode(e.target.value)} rows={14} aria-label={`Edit source code for ${node.path}`} spellCheck={false} className="font-mono-code block w-full resize-y rounded-[8px] p-3.5 text-[12.5px] leading-relaxed" style={{ ...CODE_BOX, color: 'var(--text-primary)' }} />
+                <textarea value={draftCode} onChange={(e) => setDraftCode(e.target.value)} rows={14} aria-label={`Edit source code for ${node.path}`} spellCheck={false} className="font-mono-code block w-full resize-y rounded-[8px] p-3.5 text-[13.5px] leading-relaxed" style={{ ...CODE_BOX, color: 'var(--text-primary)' }} />
               ) : (
                 <CodeLines lines={allLines.slice(0, MAX_LINES)} flagged={flaggedLines} />
               )}
@@ -176,7 +176,7 @@ export function CodeInspectorModal({ node, findings, onApplyFileChange, onClose 
           </div>
 
           <footer className="divider-t flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-            <span className="text-muted text-xs tabular-nums">
+            <span className="text-muted text-[0.8125rem] tabular-nums">
               {!isEditing && allLines.length > MAX_LINES ? `Showing first ${MAX_LINES} of ${allLines.length} lines` : ''}
             </span>
             <div className="flex items-center gap-2">

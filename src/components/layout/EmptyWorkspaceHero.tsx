@@ -48,7 +48,7 @@ export function EmptyWorkspaceHero({
           <h1 id="main-heading" tabIndex={-1} className="heading-hero">
             See how a codebase fits together
           </h1>
-          <p className="text-secondary text-[0.9375rem] max-w-[34rem] mx-auto">
+          <p className="text-secondary text-[1rem] max-w-[34rem] mx-auto">
             Paste a GitHub repository to see how its files connect, what could be risky or slow, and how to fix it,
             with a ready-made guide for your AI coding assistant. Your code never leaves your browser.
           </p>
@@ -65,7 +65,7 @@ export function EmptyWorkspaceHero({
                 value={repoInput}
                 onChange={(e) => setRepoInput(e.target.value)}
                 placeholder="owner/repo or https://github.com/…"
-                className="font-mono-code text-[0.875rem]"
+                className="font-mono-code text-[0.9375rem]"
                 autoComplete="off"
                 spellCheck={false}
                 autoFocus
@@ -98,7 +98,7 @@ export function EmptyWorkspaceHero({
           </div>
 
           <div hidden={!showPat} className="atlas-collapsible surface p-4 space-y-3">
-            <div className="flex items-start gap-2.5 text-[0.8125rem] text-secondary">
+            <div className="flex items-start gap-2.5 text-[0.875rem] text-secondary">
               <ShieldCheck size={16} strokeWidth={1.75} className="tone-success tone-text shrink-0 mt-0.5" aria-hidden="true" />
               <p>
                 To read a private repository, paste a GitHub access token with read-only access (create one in GitHub under
@@ -116,7 +116,7 @@ export function EmptyWorkspaceHero({
                 value={patInput}
                 onChange={(e) => setPatInput(e.target.value)}
                 placeholder="github_pat_…"
-                className="font-mono-code text-[0.8125rem]"
+                className="font-mono-code text-[0.875rem]"
               />
             </div>
           </div>
@@ -144,7 +144,7 @@ export function EmptyWorkspaceHero({
         <section className="space-y-2.5" style={{ '--i': 1 } as React.CSSProperties} aria-labelledby="pinned-heading">
           <div className="flex items-baseline justify-between">
             <h2 id="pinned-heading" className="eyebrow">Pinned</h2>
-            <span className="text-[0.75rem] text-muted">Saved in this browser</span>
+            <span className="text-[0.8125rem] text-muted">Saved in this browser</span>
           </div>
           <PinnedProjectList pinnedProjects={pinnedProjects} onSelectPinned={onSelectPinned} onUnpinProject={onUnpinProject} />
         </section>
@@ -157,7 +157,7 @@ export function EmptyWorkspaceHero({
               <Icon size={15} strokeWidth={1.75} className="text-muted" aria-hidden="true" />
               {title}
             </div>
-            <p className="text-[0.8125rem] text-secondary">{body}</p>
+            <p className="text-[0.875rem] text-secondary">{body}</p>
           </div>
         ))}
       </section>

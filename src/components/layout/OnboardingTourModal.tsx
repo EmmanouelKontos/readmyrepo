@@ -113,7 +113,7 @@ export function OnboardingTourModal({ isOpen, onClose, onSelectPreset, onSelectT
     <dialog ref={dialogRef} closedby="any" aria-labelledby="tour-modal-title" onClose={onClose} className="atlas-dialog" style={{ maxWidth: 'min(32rem, 94vw)' }}>
       <header className="flex items-center justify-between gap-3 px-5 pt-4">
         <div className="flex items-center gap-3">
-          <span className="text-muted text-xs tabular-nums" aria-live="polite">
+          <span className="text-muted text-[0.8125rem] tabular-nums" aria-live="polite">
             Step {stepIdx + 1} of {TOUR_STEPS.length}
           </span>
           <div className="flex items-center" role="group" aria-label="Tutorial steps">
@@ -148,7 +148,7 @@ export function OnboardingTourModal({ isOpen, onClose, onSelectPreset, onSelectT
         <p className="text-secondary leading-relaxed">{current.description}</p>
         <ul className="space-y-1.5 pt-1">
           {current.points.map((point) => (
-            <li key={point} className="text-secondary tone-neutral flex items-center gap-2.5 text-[0.8125rem]">
+            <li key={point} className="text-secondary tone-neutral flex items-center gap-2.5 text-[0.875rem]">
               <span className="tone-dot" aria-hidden="true" />
               <span>{point}</span>
             </li>

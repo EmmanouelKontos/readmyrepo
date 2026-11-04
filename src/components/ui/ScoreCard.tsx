@@ -43,15 +43,15 @@ export function ScoreCard({
     >
       <div className="w-full flex items-start justify-between gap-2">
         <span className="min-w-0">
-          <span className="block text-[0.8125rem] text-secondary">{label}</span>
-          <span className="block text-[0.71875rem] text-muted leading-snug mt-0.5">{description}</span>
+          <span className="block text-[0.875rem] text-secondary">{label}</span>
+          <span className="block text-[0.8125rem] text-muted leading-snug mt-0.5">{description}</span>
         </span>
         <span className="text-muted shrink-0 mt-0.5" aria-hidden="true">{icon}</span>
       </div>
 
       <div className="flex items-baseline gap-1.5 font-mono-code tabular-nums">
         <span className="text-[1.75rem] leading-none font-medium tracking-tight">{score.toLocaleString()}</span>
-        {suffix && <span className="text-[0.75rem] text-muted">{suffix}</span>}
+        {suffix && <span className="text-[0.8125rem] text-muted">{suffix}</span>}
         {delta !== undefined && delta !== 0 && (
           <span className={`chip tone-chip ml-1 ${isImprovement ? 'tone-success' : 'tone-danger'}`} title="Change since you pinned this project">
             {formatDelta(delta)}
@@ -66,13 +66,13 @@ export function ScoreCard({
       )}
 
       <div className="w-full flex items-center justify-between gap-2 mt-auto">
-        <p className="text-[0.75rem] text-muted truncate">
+        <p className="text-[0.8125rem] text-muted truncate">
           {!isMetric && <span className={`tone-text ${tone}`}>{scoreLabel(score)}</span>}
           {!isMetric && ' · '}
           {subtitle}
         </p>
         {actionLabel && (
-          <span className="inline-flex items-center gap-0.5 text-[0.75rem] text-muted shrink-0 transition-colors group-hover:text-[var(--text-primary)]">
+          <span className="inline-flex items-center gap-0.5 text-[0.8125rem] text-muted shrink-0 transition-colors group-hover:text-[var(--text-primary)]">
             {actionLabel}
             <ArrowUpRight size={12} strokeWidth={1.75} aria-hidden="true" />
           </span>

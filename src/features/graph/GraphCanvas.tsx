@@ -56,7 +56,8 @@ export function GraphCanvas({ layout, edges, focus, zoomPct, matchesFilter, onOp
       className="atlas-graph h-auto select-none block"
       data-focused={focusId ? 'true' : undefined}
       onClick={focus.clearSelection}
-      style={{ width: `${zoomPct}%`, minWidth: `${Math.round(760 * (zoomPct / 100))}px` }}
+      width={Math.round(layout.width * (zoomPct / 100))}
+      height={Math.round(layout.height * (zoomPct / 100))}
     >
       <defs>
         {MARKERS.map(([id, fill]) => (
@@ -70,7 +71,7 @@ export function GraphCanvas({ layout, edges, focus, zoomPct, matchesFilter, onOp
         <g key={lane.key}>
           <title>{`${lane.label}: ${lane.description}`}</title>
           <rect x={lane.x} y={0} width={lane.width} height={layout.height} rx={8} style={{ fill: 'var(--bg-elevated)', opacity: 0.55 }} />
-          <text x={lane.x + 12} y={26} fontSize="11" fontWeight="500" letterSpacing="0.04em" style={{ fill: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          <text x={lane.x + 12} y={28} fontSize="12" fontWeight="600" letterSpacing="0.04em" style={{ fill: 'var(--text-secondary)', textTransform: 'uppercase' }}>
             {lane.label}
             <tspan dx="6" className="font-mono-code" style={{ fill: 'var(--text-muted)', opacity: 0.7 }}>{lane.count}</tspan>
           </text>
@@ -111,8 +112,9 @@ export function GraphCanvas({ layout, edges, focus, zoomPct, matchesFilter, onOp
             : isNeighbour
               ? incoming.has(node.id) ? 'color-mix(in srgb, var(--accent-brand) 45%, var(--border-strong))' : 'var(--text-secondary)'
               : 'var(--border-strong)';
-        const textX = tone ? 23 : 13;
-        const maxChars = Math.max(8, Math.floor((width - textX - 10) / 7.25));
+        const textX = tone ? 25 : 14;
+        // Geist Mono advances ~0.6em per character (13px → ~7.8px)
+        const maxChars = Math.max(8, Math.floor((width - textX - 10) / 7.8));
         const label = node.name.length > maxChars ? `${node.name.slice(0, maxChars - 1)}…` : node.name;
         // The pinned module stays solid while another one is previewed, so you never lose your place.
         const opacity = !matchesFilter(node) ? 0.28 : focusId && !isFocus && !isNeighbour && !isSelected ? 0.4 : 1;
@@ -138,10 +140,10 @@ export function GraphCanvas({ layout, edges, focus, zoomPct, matchesFilter, onOp
           >
             <g className="atlas-node-body" style={{ ['--i' as string]: Math.min(i, 40) }}>
               <rect className="atlas-node-card" width={width} height={height} rx={7} style={{ stroke, strokeWidth: isSelected ? 1.5 : 1 }} />
-              <rect className="atlas-node-bar" x={4} y={12} width={2.5} height={height - 24} rx={1.25} />
-              {tone && <circle cx={14} cy={21} r={3} style={{ fill: tone }} />}
-              <text x={textX} y={25} fontSize="12" fontWeight="500" className="font-mono-code" style={{ fill: 'var(--text-primary)' }}>{label}</text>
-              <text x={13} y={43} fontSize="11" className="font-mono-code" style={{ fill: 'var(--text-muted)' }}>
+              <rect className="atlas-node-bar" x={4} y={13} width={2.5} height={height - 26} rx={1.25} />
+              {tone && <circle cx={15} cy={23} r={3.5} style={{ fill: tone }} />}
+              <text x={textX} y={27.5} fontSize="13" fontWeight="500" className="font-mono-code" style={{ fill: 'var(--text-primary)' }}>{label}</text>
+              <text x={14} y={47} fontSize="12" className="font-mono-code" style={{ fill: 'var(--text-secondary)' }}>
                 <tspan style={node.isGodFile ? { fill: 'var(--tone-warning)' } : undefined}>{node.linesOfCode} lines</tspan>
                 {node.issueCount > 0 ? ` · ${node.issueCount} ${node.issueCount === 1 ? 'issue' : 'issues'}` : ''}
               </text>

@@ -21,7 +21,7 @@ function LinkList({ title, ids, empty, direction, onSelect }: { title: string; i
         <span className="count">{ids.length}</span>
       </h4>
       {ids.length === 0 ? (
-        <p className="text-[0.8125rem] text-muted">{empty}</p>
+        <p className="text-[0.875rem] text-muted">{empty}</p>
       ) : (
         <div className="flex flex-wrap gap-1">
           {ids.map((id) => (
@@ -46,12 +46,12 @@ export function ModuleInspectorCard({ selectedNode, findings, onSelectNodeId, on
   ];
 
   return (
-    <aside aria-label="Selected module" className="xl:col-span-4 surface flex flex-col">
+    <aside aria-label="Selected module" className="xl:col-span-3 surface flex flex-col min-w-0">
       <div key={selectedNode.id} className="atlas-fade-in flex flex-col flex-1">
         <div className="px-4 py-3 divider-b flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-0.5">
             <p className="eyebrow" title={LAYER_INFO[selectedNode.layer].description}>{LAYER_INFO[selectedNode.layer].label} layer</p>
-            <h3 className="font-mono-code text-[0.8125rem] font-medium break-all leading-snug">{selectedNode.path}</h3>
+            <h3 className="font-mono-code text-[0.875rem] font-medium break-all leading-snug">{selectedNode.path}</h3>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <SeverityBadge severity={selectedNode.maxSeverity} />
@@ -64,8 +64,8 @@ export function ModuleInspectorCard({ selectedNode, findings, onSelectNodeId, on
         <dl className="grid grid-cols-3 divider-b">
           {stats.map(([label, value, hint], i) => (
             <div key={label} title={hint} className="px-4 py-3" style={i > 0 ? { borderLeft: '1px solid var(--border-hairline)' } : undefined}>
-              <dt className="text-[0.75rem] text-muted">{label}</dt>
-              <dd className="font-mono-code text-[0.9375rem] tabular-nums mt-0.5">{value}</dd>
+              <dt className="text-[0.8125rem] text-muted">{label}</dt>
+              <dd className="font-mono-code text-[1rem] tabular-nums mt-0.5">{value}</dd>
             </div>
           ))}
         </dl>
@@ -74,13 +74,13 @@ export function ModuleInspectorCard({ selectedNode, findings, onSelectNodeId, on
           {(selectedNode.isGodFile || selectedNode.inCycle) && (
             <div className="space-y-1.5">
               {selectedNode.isGodFile && (
-                <p className="tone-callout tone-warning flex items-center gap-2 px-3 py-2 text-[0.8125rem]">
+                <p className="tone-callout tone-warning flex items-center gap-2 px-3 py-2 text-[0.875rem]">
                   <AlertTriangle size={14} strokeWidth={1.75} className="tone-text shrink-0" aria-hidden="true" />
                   {selectedNode.codeLines ?? selectedNode.linesOfCode} lines of code, over the suggested {selectedNode.sizeLimit ?? 220}. Consider splitting it.
                 </p>
               )}
               {selectedNode.inCycle && (
-                <p className="tone-callout tone-danger flex items-center gap-2 px-3 py-2 text-[0.8125rem]">
+                <p className="tone-callout tone-danger flex items-center gap-2 px-3 py-2 text-[0.875rem]">
                   <RefreshCcw size={14} strokeWidth={1.75} className="tone-text shrink-0" aria-hidden="true" />
                   In an import loop: it depends on files that depend back on it.
                 </p>
@@ -94,7 +94,7 @@ export function ModuleInspectorCard({ selectedNode, findings, onSelectNodeId, on
               <span className="count">{moduleFindings.length}</span>
             </h4>
             {moduleFindings.length === 0 ? (
-              <p className="flex items-center gap-2 text-[0.8125rem] text-secondary">
+              <p className="flex items-center gap-2 text-[0.875rem] text-secondary">
                 <ShieldCheck size={14} strokeWidth={1.75} className="tone-success tone-text" aria-hidden="true" />
                 No issues in this file
               </p>
@@ -105,13 +105,13 @@ export function ModuleInspectorCard({ selectedNode, findings, onSelectNodeId, on
                     <button type="button" onClick={() => onInspectCode(selectedNode)} className="row-interactive w-full text-left px-2 py-1.5 flex items-start gap-2.5 cursor-pointer">
                       <span className={`tone-dot mt-[7px] ${SEVERITY_TONE[f.severity]}`} aria-hidden="true" />
                       <span className="min-w-0">
-                        <span className="block text-[0.8125rem] leading-snug">{f.title}</span>
-                        <span className="block font-mono-code text-[0.71875rem] text-muted">{f.ruleId} · line {f.lineNumber}</span>
+                        <span className="block text-[0.875rem] leading-snug">{f.title}</span>
+                        <span className="block font-mono-code text-[0.8125rem] text-muted">{f.ruleId} · line {f.lineNumber}</span>
                       </span>
                     </button>
                   </li>
                 ))}
-                {moduleFindings.length > 4 && <li className="px-2 pt-1 text-[0.75rem] text-muted">+{moduleFindings.length - 4} more in the source view</li>}
+                {moduleFindings.length > 4 && <li className="px-2 pt-1 text-[0.8125rem] text-muted">+{moduleFindings.length - 4} more in the source view</li>}
               </ul>
             )}
           </div>

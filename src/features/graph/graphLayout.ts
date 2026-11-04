@@ -19,14 +19,16 @@ export const LAYER_ORDER: { key: ArchitecturalLayer; label: string; description:
 
 export const LAYER_INFO = Object.fromEntries(LAYER_ORDER.map((l) => [l.key, l])) as Record<ArchitecturalLayer, (typeof LAYER_ORDER)[number]>;
 
+/** Layout width used before the container has been measured, and the narrowest layout we allow. */
 export const GRAPH_WIDTH = 1080;
-const SIDE_PAD = 16;
-const HEADER_H = 52;
-const CARD_H = 56;
-const ROW_GAP = 72;
-const LANE_GAP = 16;
-/** Narrowest card column we allow when wrapping a busy layer into several columns. */
-const MIN_SUBCOL_W = 168;
+export const MIN_GRAPH_WIDTH = 720;
+const SIDE_PAD = 12;
+const HEADER_H = 54;
+export const CARD_H = 62;
+const ROW_GAP = 78;
+const LANE_GAP = 14;
+/** Narrowest card column we allow when wrapping a busy layer into several columns (fits ~20 mono characters at 13px). */
+const MIN_SUBCOL_W = 184;
 
 /**
  * Rows needed so every layer fits in the available width: busy layers wrap into extra
@@ -40,17 +42,19 @@ function fitRows(counts: number[], maxColumns: number): number {
   return tallest;
 }
 
-export function computeGraphLayout(nodes: RepoNode[]) {
+/** `width` is the real pixel width available, so the SVG renders 1:1 and font sizes are what they say. */
+export function computeGraphLayout(nodes: RepoNode[], width = GRAPH_WIDTH) {
+  const graphWidth = Math.max(MIN_GRAPH_WIDTH, Math.round(width));
   const activeLayers = LAYER_ORDER.filter((l) => nodes.some((n) => n.layer === l.key));
   const members = activeLayers.map((l) => nodes.filter((n) => n.layer === l.key));
   const counts = members.map((m) => m.length);
-  const avail = GRAPH_WIDTH - SIDE_PAD * 2 - LANE_GAP * Math.max(0, activeLayers.length - 1);
+  const avail = graphWidth - SIDE_PAD * 2 - LANE_GAP * Math.max(0, activeLayers.length - 1);
   const maxColumns = Math.max(activeLayers.length, Math.floor(avail / MIN_SUBCOL_W));
   const rows = fitRows(counts, maxColumns);
   const subCols = counts.map((n) => Math.max(1, Math.ceil(n / rows)));
   const totalSubCols = subCols.reduce((a, b) => a + b, 0) || 1;
   const subColW = avail / totalSubCols;
-  const cardW = Math.round(Math.min(200, subColW - 20));
+  const cardW = Math.round(Math.min(232, subColW - 18));
 
   const coords = new Map<string, NodeBox>();
   const lanes: Array<{ key: ArchitecturalLayer; label: string; description: string; x: number; width: number; count: number }> = [];
@@ -68,7 +72,7 @@ export function computeGraphLayout(nodes: RepoNode[]) {
   });
 
   const height = Math.max(320, HEADER_H + 12 + rows * ROW_GAP + 8);
-  return { lanes, coords, colStep: subColW, cardW, width: GRAPH_WIDTH, height, headerH: HEADER_H };
+  return { lanes, coords, colStep: subColW, cardW, width: graphWidth, height, headerH: HEADER_H };
 }
 
 /** Smooth cubic path between two node boxes, routing around same-column and long same-row links. */

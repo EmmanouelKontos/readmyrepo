@@ -56,7 +56,7 @@ export function AuditTable({ findings, initialFilter = 'all', onSelectFilePath }
     <div className="atlas-panel-animate surface">
       <div className="px-4 pt-3.5 pb-3 divider-b space-y-0.5">
         <h2 className="heading-section">Findings</h2>
-        <p className="text-[0.75rem] text-muted measure-readable">
+        <p className="text-[0.8125rem] text-muted measure-readable">
           Problems spotted in the code, most serious first. Open one to see why it matters, how to fix it, and a ready-made prompt for
           your AI assistant.
         </p>
@@ -74,7 +74,7 @@ export function AuditTable({ findings, initialFilter = 'all', onSelectFilePath }
           <label htmlFor={searchInputId} className="visually-hidden">Filter findings</label>
           <div className="field w-full md:w-64">
             <Search size={14} strokeWidth={1.75} className="text-muted" aria-hidden="true" />
-            <input id={searchInputId} type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Filter by rule, file or text" className="text-[0.8125rem]" />
+            <input id={searchInputId} type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Filter by rule, file or text" className="text-[0.875rem]" />
           </div>
           {filtered.length > 0 && (
             <button type="button" onClick={() => setOpenIds(allOpen ? new Set() : new Set(filtered.map((f) => f.id)))} className="btn btn-ghost btn-sm shrink-0">
@@ -88,7 +88,7 @@ export function AuditTable({ findings, initialFilter = 'all', onSelectFilePath }
         <div className="px-6 py-16 text-center space-y-2">
           <ShieldCheck size={22} strokeWidth={1.5} className="mx-auto tone-success tone-text" aria-hidden="true" />
           <h3 className="heading-section">{findings.length === 0 ? 'No findings' : 'Nothing matches'}</h3>
-          <p className="text-[0.8125rem] text-secondary">
+          <p className="text-[0.875rem] text-secondary">
             {findings.length === 0 ? 'Every security, performance and architecture check passed.' : 'Try a different filter or search term.'}
           </p>
           {(searchQuery || filter !== 'all') && findings.length > 0 && (
@@ -111,13 +111,13 @@ export function AuditTable({ findings, initialFilter = 'all', onSelectFilePath }
                 >
                   <span className="md:w-[5.5rem]"><SeverityBadge severity={f.severity} /></span>
                   <span className="min-w-0">
-                    <span className="block text-[0.875rem] font-medium leading-snug">{f.title}</span>
-                    <span className="block font-mono-code text-[0.71875rem] text-muted mt-0.5">
+                    <span className="block text-[0.9375rem] font-medium leading-snug">{f.title}</span>
+                    <span className="block font-mono-code text-[0.8125rem] text-muted mt-0.5">
                       {f.ruleId} · {f.category}
                       <span className="md:hidden"> · {f.filePath.split('/').pop()}:{f.lineNumber}</span>
                     </span>
                   </span>
-                  <span className="hidden md:block font-mono-code text-[0.75rem] text-muted truncate text-right" title={`${f.filePath}:${f.lineNumber}`}>
+                  <span className="hidden md:block font-mono-code text-[0.8125rem] text-muted truncate text-right" title={`${f.filePath}:${f.lineNumber}`}>
                     {f.filePath}:{f.lineNumber}
                   </span>
                   <ChevronRight size={15} strokeWidth={1.75} className="disclosure-chevron text-muted" aria-hidden="true" />
@@ -128,11 +128,11 @@ export function AuditTable({ findings, initialFilter = 'all', onSelectFilePath }
                     <div className="px-4 pb-4 md:pl-[calc(5.5rem+1.75rem)] space-y-3">
                       <div className="measure-readable">
                         <p className="eyebrow mb-1">Why it matters</p>
-                        <p className="text-[0.8125rem] text-secondary"><InlineCodeText text={f.explanation} /></p>
+                        <p className="text-[0.875rem] text-secondary"><InlineCodeText text={f.explanation} /></p>
                       </div>
                       <div className="surface-quiet px-3 py-2.5 measure-readable">
                         <p className="eyebrow mb-1">How to fix</p>
-                        <p className="text-[0.8125rem]"><InlineCodeText text={f.remediation} /></p>
+                        <p className="text-[0.875rem]"><InlineCodeText text={f.remediation} /></p>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         <button type="button" onClick={() => onSelectFilePath(f.filePath)} className="btn btn-secondary btn-sm">

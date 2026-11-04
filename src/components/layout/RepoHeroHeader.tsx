@@ -41,7 +41,7 @@ export function RepoHeroHeader({
   return (
     <section className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 atlas-fade-in">
       <div className="space-y-2 min-w-0">
-        <p className="text-[0.8125rem] text-muted truncate">
+        <p className="text-[0.875rem] text-muted truncate">
           <span className="font-mono-code text-secondary">{analysis.repoSlug}</span>
           {meta.map((m) => (
             <span key={m}> · {m}</span>
@@ -51,7 +51,7 @@ export function RepoHeroHeader({
           {analysis.repoName}
         </h1>
         {about && <p className="text-secondary measure-readable line-clamp-2">{about}</p>}
-        {scanNote && <p className="text-[0.75rem] text-muted">{scanNote}</p>}
+        {scanNote && <p className="text-[0.8125rem] text-muted">{scanNote}</p>}
       </div>
 
       <div className="flex flex-col items-start lg:items-end gap-3 shrink-0">
@@ -59,9 +59,9 @@ export function RepoHeroHeader({
           <div className="text-left lg:text-right">
             <div className="flex items-baseline gap-1.5 lg:justify-end">
               <span className="font-mono-code text-[2.5rem] leading-none font-medium tracking-tight tabular-nums">{overall}</span>
-              <span className="font-mono-code text-muted text-[0.8125rem]">/100</span>
+              <span className="font-mono-code text-muted text-[0.875rem]">/100</span>
             </div>
-            <div className="flex items-center gap-1.5 mt-1.5 text-[0.8125rem] lg:justify-end">
+            <div className="flex items-center gap-1.5 mt-1.5 text-[0.875rem] lg:justify-end">
               <span className={`tone-dot ${tone}`} aria-hidden="true" />
               <span className="text-secondary">Overall · {scoreLabel(overall)}</span>
               {diff && diff.overallDelta !== 0 && (
@@ -77,7 +77,7 @@ export function RepoHeroHeader({
         </div>
 
         {hasChanges && diff && (
-          <p className="text-[0.75rem] text-muted flex flex-wrap items-center gap-x-2 gap-y-1 lg:justify-end">
+          <p className="text-[0.8125rem] text-muted flex flex-wrap items-center gap-x-2 gap-y-1 lg:justify-end">
             {diff.resolvedFindingsCount > 0 && <span className="tone-success tone-text">{diff.resolvedFindingsCount} fixed</span>}
             {diff.newFindingsCount > 0 && <span className="tone-danger tone-text">{diff.newFindingsCount} new</span>}
             <span>since your first scan at {diff.baselineTimestamp}</span>

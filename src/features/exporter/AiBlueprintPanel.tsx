@@ -28,7 +28,7 @@ function BlueprintCard({ icon, title, description, actions, body, bodyLabel }: B
             <span className="text-muted flex">{icon}</span>
             <h3 className="heading-section">{title}</h3>
           </div>
-          <p className="text-secondary measure-readable text-[0.8125rem]">{description}</p>
+          <p className="text-secondary measure-readable text-[0.875rem]">{description}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
       </header>
@@ -36,7 +36,7 @@ function BlueprintCard({ icon, title, description, actions, body, bodyLabel }: B
         <pre
           aria-label={bodyLabel}
           tabIndex={0}
-          className="font-mono-code max-h-[26rem] overflow-auto whitespace-pre-wrap rounded-[8px] p-4 text-[12.5px] leading-relaxed"
+          className="font-mono-code max-h-[26rem] overflow-auto whitespace-pre-wrap rounded-[8px] p-4 text-[13.5px] leading-relaxed"
           style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-hairline)' }}
         >
           {body}
