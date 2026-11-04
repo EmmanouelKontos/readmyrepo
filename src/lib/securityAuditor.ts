@@ -43,8 +43,8 @@ interface SecurityRule {
   ruleId: string;
   title: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
-  /** `before` holds the preceding lines (up to 6), for rules that need statement context. */
-  testLine: (line: string, filePath: string, fullContent: string, before: string) => boolean;
+  /** `before()` returns the preceding lines (up to 6), for rules that need statement context. */
+  testLine: (line: string, filePath: string, fullContent: string, before: () => string) => boolean;
   explanation: string;
   remediation: string;
 }
@@ -85,13 +85,13 @@ const SECURITY_RULES: SecurityRule[] = [
     title: 'Raw HTML inserted into the page (XSS risk)',
     severity: 'high',
     testLine: (line, _path, full, before) =>
-      // A lint suppression right above (`eslint-disable-next-line react/no-danger`, oxlint, biome-ignore)
-      // marks a sink the authors already reviewed; JSON.stringify payloads are the standard JSON-LD pattern.
-      !/(?:eslint|oxlint)-disable-next-line[^\n]*(?:no-danger|no-inner-html|innerhtml)|biome-ignore[^\n]*noDangerouslySetInnerHtml/i.test(before.split('\n').slice(-2).join('\n')) &&
-      !/__html\s*:\s*JSON\.stringify\(/.test(line) &&
       (/dangerouslySetInnerHTML\s*=\s*\{/.test(line) ||
         // assigning a static literal (`el.innerHTML = ''`) cannot inject anything
-        (/\.innerHTML\s*=\s*[^=]/.test(line) && !/\.innerHTML\s*=\s*(?:(['"])[^'"]*\1|`[^`$]*`)\s*;?\s*$/.test(line))) &&
+        (/\.innerHTML\s*=\s*[^=]/.test(line) && !/\.innerHTML\s*=\s*(?:(['"])[^'"]*\1|`[^`$]*`|(?:window\.)?trustedTypes\.emptyHTML)\s*;?\s*$/.test(line))) &&
+      // JSON.stringify payloads are the standard JSON-LD pattern; a lint suppression right above
+      // (`eslint-disable-next-line react/no-danger`, oxlint, biome-ignore) marks a sink the authors reviewed.
+      !/__html\s*:\s*JSON\.stringify\(/.test(line) &&
+      !/(?:eslint|oxlint)-disable-next-line[^\n]*(?:no-danger|no-inner-html|innerhtml)|biome-ignore[^\n]*noDangerouslySetInnerHtml/i.test(before().split('\n').slice(-2).join('\n')) &&
       !/DOMPurify\.sanitize|sanitizeHtml\(|sanitize-html|from ['"]xss['"]/.test(full),
     explanation:
       'HTML is put into the page without being cleaned first. If any of it can come from a user, an attacker can run their own script in your visitors\' browsers (cross-site scripting).',
@@ -106,7 +106,7 @@ const SECURITY_RULES: SecurityRule[] = [
       // Require real SQL statement shape (SELECT…FROM, INSERT INTO, UPDATE…SET, DELETE FROM) so
       // strings like `select-none ${className}` or "update ${count} items" are not flagged.
       (/\b(SELECT\b[^;]*?\bFROM|INSERT\s+INTO|UPDATE\s+[\w."`]+\s+SET|DELETE\s+FROM)\b[^;]*\$\{[a-zA-Z0-9_.]+\}/i.test(line) &&
-        !isSafeSqlTemplate(line, before)) ||
+        !isSafeSqlTemplate(line, before())) ||
       /\bf["'](SELECT\b.*?\bFROM|INSERT\s+INTO|UPDATE\s+\S+\s+SET|DELETE\s+FROM)\b.*\{.+\}/i.test(line),
     explanation:
       'Values are pasted straight into a SQL string. A crafted value can change the query itself, letting an attacker read or delete data they should never reach.',
@@ -176,10 +176,12 @@ export function runSecurityAudit(files: RepoFileInput[]): AuditFinding[] {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (isCommentLine(line, file.path)) continue;
+      let before: string | null = null; // preceding lines, built once per line and only when a rule needs them
+      const context = () => (before ??= lines.slice(Math.max(0, i - 6), i).join('\n'));
       for (const rule of SECURITY_RULES) {
         const dedupKey = `${rule.ruleId}::${file.path}`;
         if (seenRulePerFile.has(dedupKey)) continue;
-        if (rule.testLine(line, file.path, file.content, lines.slice(Math.max(0, i - 6), i).join('\n'))) {
+        if (rule.testLine(line, file.path, file.content, context)) {
           seenRulePerFile.add(dedupKey);
           const lineNumber = i + 1;
           const snippet = lines

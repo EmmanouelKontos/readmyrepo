@@ -10,6 +10,40 @@ const PY_STDLIB = new Set(
 );
 const JS_FILE = /\.(m|c)?(t|j)sx?$|\.(vue|svelte)$/;
 
+interface PathIndex {
+  set: Set<string>;
+  /** File name → every path ending in it, so suffix lookups touch a handful of paths, not all of them. */
+  byBase: Map<string, string[]>;
+  goFiles: string[];
+}
+
+const indexCache = new WeakMap<string[], PathIndex>();
+
+/** Built once per path list (the analyzed files, or a whole repository tree of up to 40k paths). */
+function pathIndex(allPaths: string[]): PathIndex {
+  let idx = indexCache.get(allPaths);
+  if (!idx) {
+    const byBase = new Map<string, string[]>();
+    for (const p of allPaths) {
+      const base = p.slice(p.lastIndexOf('/') + 1);
+      const list = byBase.get(base);
+      if (list) list.push(p);
+      else byBase.set(base, [p]);
+    }
+    idx = { set: new Set(allPaths), byBase, goFiles: allPaths.filter((p) => p.endsWith('.go') && !p.endsWith('_test.go')) };
+    indexCache.set(allPaths, idx);
+  }
+  return idx;
+}
+
+const baseName = (p: string) => p.slice(p.lastIndexOf('/') + 1);
+
+/** First candidate that exists, in candidate (resolution-preference) order. */
+function firstExisting(cands: string[], allPaths: string[]): string | null {
+  const { set } = pathIndex(allPaths);
+  return cands.find((c) => set.has(c)) ?? null;
+}
+
 function commonPrefixSegments(a: string, b: string): number {
   const as = a.split('/');
   const bs = b.split('/');
@@ -41,7 +75,8 @@ function joinRelative(dirParts: string[], spec: string): string {
 
 function resolveBySuffix(fromPath: string, rest: string, allPaths: string[]): string | null {
   const cands = candidatesFor(rest);
-  const matches = allPaths.filter((p) => cands.some((c) => p === c || p.endsWith(`/${c}`)));
+  const { byBase } = pathIndex(allPaths);
+  const matches = [...new Set(cands.flatMap((c) => (byBase.get(baseName(c)) ?? []).filter((p) => p === c || p.endsWith(`/${c}`))))];
   return pickClosest(fromPath, matches);
 }
 
@@ -51,7 +86,7 @@ function resolvePythonRelative(dirParts: string[], spec: string, allPaths: strin
   const rest = spec.slice(dots).replace(/\./g, '/');
   const target = [...base, rest].filter(Boolean).join('/');
   const cands = rest ? [`${target}.py`, `${target}/__init__.py`] : [`${target}/__init__.py`];
-  return allPaths.find((p) => cands.includes(p)) ?? null;
+  return firstExisting(cands, allPaths);
 }
 
 function pickGoPackageFile(importPath: string, files: string[]): string {
@@ -61,7 +96,7 @@ function pickGoPackageFile(importPath: string, files: string[]): string {
 }
 
 function resolveGo(fromPath: string, importPath: string, allPaths: string[], allFiles?: RepoFileInput[]): string | null {
-  const goFiles = allPaths.filter((p) => p.endsWith('.go') && !p.endsWith('_test.go'));
+  const { goFiles } = pathIndex(allPaths);
   const dirOf = (p: string) => p.split('/').slice(0, -1).join('/');
 
   // go.mod gives the exact module path → directory mapping
@@ -98,7 +133,7 @@ function resolveGo(fromPath: string, importPath: string, allPaths: string[], all
 /** File that defines the module whose children live in `dir` (foo.rs / foo/mod.rs / src/lib.rs). */
 function rustModuleFile(dir: string, allPaths: string[]): string | null {
   const cands = [`${dir}.rs`, `${dir}/mod.rs`, `${dir}/lib.rs`, `${dir}/main.rs`];
-  return cands.map((c) => allPaths.find((p) => p === c)).find(Boolean) ?? null;
+  return firstExisting(cands, allPaths);
 }
 
 function resolveRust(fromPath: string, spec: string, dirParts: string[], allPaths: string[]): string | null {
@@ -108,7 +143,7 @@ function resolveRust(fromPath: string, spec: string, dirParts: string[], allPath
   if (!spec.includes('::')) {
     // `mod foo;` → foo.rs or foo/mod.rs next to the declaring module
     const base = [...selfDir, spec].join('/');
-    return allPaths.find((p) => p === `${base}.rs` || p === `${base}/mod.rs`) ?? null;
+    return firstExisting([`${base}.rs`, `${base}/mod.rs`], allPaths);
   }
   const parts = spec.split('::').filter((p) => p !== '*');
   const head = parts.shift();
@@ -118,7 +153,7 @@ function resolveRust(fromPath: string, spec: string, dirParts: string[], allPath
   const root = head === 'crate' ? crateRoot : head === 'super' ? superDir : head === 'kernel' ? ['rust', 'kernel'] : selfDir;
   for (let len = parts.length; len >= 1; len--) {
     const base = [...root, ...parts.slice(0, len)].join('/');
-    const found = allPaths.find((p) => p === `${base}.rs` || p === `${base}/mod.rs`);
+    const found = firstExisting([`${base}.rs`, `${base}/mod.rs`], allPaths);
     if (found) return found;
   }
   // Item defined directly in the target module file (`use crate::Error`, `use super::*`)
@@ -143,7 +178,7 @@ export function resolveImportToFile(fromPath: string, spec: string, allPaths: st
   if (fromPath.endsWith('.json')) {
     // manifest.json / tauri.conf.json entries are relative to the manifest's directory
     const target = joinRelative(dirParts, spec.replace(/^\//, ''));
-    return allPaths.find((p) => candidatesFor(target).includes(p)) ?? null;
+    return firstExisting(candidatesFor(target), allPaths);
   }
   if (fromPath.endsWith('.rs')) return resolveRust(fromPath, spec, dirParts, allPaths);
   if (fromPath.endsWith('.py') && /^\.+[\w.]*$/.test(spec)) return resolvePythonRelative(dirParts, spec, allPaths);
@@ -156,28 +191,32 @@ export function resolveImportToFile(fromPath: string, spec: string, allPaths: st
 
   if (spec.startsWith('.')) {
     const target = joinRelative(dirParts, spec);
-    const cands = candidatesFor(target);
-    return allPaths.find((p) => cands.includes(p)) ?? null;
+    return firstExisting(candidatesFor(target), allPaths);
   }
 
   // Bare specifiers
   if (/\.(c|h|cc|cpp|hpp|hh|m|mm)$/.test(fromPath)) {
     const local = dirParts.length ? `${dirParts.join('/')}/${spec}` : spec;
-    return allPaths.find((p) => p === local || p === spec || p === `include/${spec}`) ?? pickClosest(fromPath, allPaths.filter((p) => p.endsWith(`/${spec}`)));
+    return (
+      firstExisting([local, spec, `include/${spec}`], allPaths) ??
+      pickClosest(fromPath, (pathIndex(allPaths).byBase.get(baseName(spec)) ?? []).filter((p) => p.endsWith(`/${spec}`)))
+    );
   }
   if (fromPath.endsWith('.py')) {
     const find = (dotted: string) => {
       const mod = dotted.replace(/\./g, '/');
       const top = mod.split('/')[0];
+      const { set, byBase } = pathIndex(allPaths);
+      const pool = [...(byBase.get(`${baseName(mod)}.py`) ?? []), ...(byBase.get('__init__.py') ?? []).filter((p) => p.endsWith(`${mod}/__init__.py`))];
       return pickClosest(
         fromPath,
-        allPaths.filter((p) => {
+        pool.filter((p) => {
           const tail = p.endsWith(`${mod}.py`) ? `${mod}.py` : p.endsWith(`${mod}/__init__.py`) ? `${mod}/__init__.py` : null;
           if (!tail) return false;
           const prefix = p.slice(0, p.length - tail.length);
           if (prefix && !prefix.endsWith('/')) return false;
           // Absolute imports start at a source root: never inside another package (`flask/json` ≠ stdlib `json`)
-          if (prefix && allPaths.includes(`${prefix}__init__.py`)) return false;
+          if (prefix && set.has(`${prefix}__init__.py`)) return false;
           return !(prefix && PY_STDLIB.has(top));
         })
       );

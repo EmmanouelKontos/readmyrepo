@@ -48,3 +48,25 @@ RepoAtlas is a pure static SPA with pre-configured Cloudflare Pages headers (`pu
 bun run build
 bunx wrangler pages deploy dist --project-name repo-atlas
 ```
+
+### How it scales
+
+There is no backend. Cloudflare serves static files (free and unmetered on the Pages free plan), and every
+visitor's browser talks to GitHub directly, so each visitor has their own GitHub quota:
+
+- **API requests per scan:** 2–6 (repository info plus file listings). File contents come from
+  `raw.githubusercontent.com`, which does not count against the API quota — also when a token is used, unless the
+  repository is private.
+- **Anonymous visitors:** GitHub allows about 60 API requests per hour per IP, so roughly 10–30 scans per hour.
+  When that runs out, public repositories still load through the `ungh.cc` tree mirror + raw files.
+- **With a token:** 5,000 requests per hour for that visitor.
+- **Downloads** run at most 8 at a time to stay clear of GitHub's abuse limits.
+
+### Security
+
+- Strict Content-Security-Policy in production (`public/_headers` + the in-page policy added at build time):
+  `script-src 'self'`, network access only to `api.github.com`, `raw.githubusercontent.com` and `ungh.cc`,
+  no framing, no plugins.
+- Repository content is only ever rendered as text; no `innerHTML` anywhere in the app.
+- Tokens stay in memory for the tab, are sent only to `api.github.com`, and are never written to storage or the URL.
+- Every analyzer regex is bounded and linear-time on untrusted input (fuzzed with 160 KB adversarial files).

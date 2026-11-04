@@ -18,12 +18,7 @@
       name="description"
       content="RepoAtlas maps any GitHub repository: dependency graph, security and performance findings, and a ready-to-commit AGENTS.md. Runs entirely in your browser."
     />
-    <script>
-      try {
-        document.querySelector('meta[name="color-scheme"]').content =
-          localStorage.getItem("color-scheme") ?? "light dark";
-      } catch (e) {}
-    </script>
+    <script src="/theme-init.js"></script>
     <title>RepoAtlas · See how a codebase fits together</title>
     <link rel="preconnect" href="https://api.github.com" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

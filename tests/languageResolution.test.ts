@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import { analyzeRepository } from '../src/lib/analyzer';
-import { isAnalyzablePath, selectStratifiedPaths } from '../src/lib/githubFetcher';
+import { isAnalyzablePath, parseGitHubInput, selectStratifiedPaths } from '../src/lib/githubFetcher';
+import { pickRootDirs } from '../src/lib/pathSelection';
+import { mapWithLimit } from '../src/lib/githubTransport';
 import { extractImports, resolveImportToFile } from '../src/lib/importResolver';
 import { runSecurityAudit } from '../src/lib/securityAuditor';
 
@@ -156,6 +158,13 @@ describe('Sampling and rule precision', () => {
     expect(sec4('db.query(`SELECT * FROM users WHERE name = ${name}`);')).toBe(1);
   });
 
+  it('does not flag clearing HTML with a static value', () => {
+    const sec3 = (line: string) => runSecurityAudit([{ path: 'src/v.js', content: `${line}\n` }]).filter((f) => f.ruleId === 'SEC-003').length;
+    expect(sec3("el.innerHTML = '';")).toBe(0);
+    expect(sec3('this.out_.innerHTML = trustedTypes.emptyHTML;')).toBe(0);
+    expect(sec3('el.innerHTML = userInput;')).toBe(1);
+  });
+
   it('does not flag strcpy of a short string literal', () => {
     const findings = runSecurityAudit([
       { path: 'a.c', content: 'void f(char *b) {\n  strcpy(b - 1, "...");\n}\n' },
@@ -165,3 +174,41 @@ describe('Sampling and rule precision', () => {
     expect(findings.map((f) => f.filePath)).toEqual(['b.c']);
   });
 });
+
+describe('Repository input and large-repo handling', () => {
+  it('accepts every common way of writing a GitHub repository', () => {
+    const plain = { owner: 'vercel', repo: 'next.js' };
+    for (const input of ['vercel/next.js', 'https://github.com/vercel/next.js', 'github.com/vercel/next.js', 'www.github.com/vercel/next.js/', 'https://github.com/vercel/next.js.git', 'git@github.com:vercel/next.js.git', ' vercel/next.js?tab=readme#top ']) {
+      expect(parseGitHubInput(input)).toEqual(plain);
+    }
+    expect(parseGitHubInput('https://github.com/vercel/next.js/blob/canary/packages/next/package.json')).toEqual({ ...plain, branchHint: 'canary', subpath: 'packages/next' });
+  });
+
+  it('rejects non-GitHub links and traversal with a clear message', () => {
+    expect(() => parseGitHubInput('https://gitlab.com/inkscape/inkscape')).toThrow(/GitHub repositories/);
+    expect(() => parseGitHubInput('../../etc/passwd')).toThrow();
+    expect(() => parseGitHubInput('a/b/../../c')).toThrow();
+    expect(() => parseGitHubInput('vercel')).toThrow(/owner\/repo/);
+  });
+
+  it('picks core folders of huge repositories, never docs or tests', () => {
+    const tree = (...names: string[]) => names.map((path) => ({ path, type: 'tree' }));
+    expect(pickRootDirs(tree('docs', 'homeassistant', 'tests', 'script'), 'home-assistant', 'core').map((d) => d.path)[0]).toBe('homeassistant');
+    expect(pickRootDirs(tree('api', 'cmd', 'docs', 'pkg', 'test', 'vendor'), 'kubernetes', 'kubernetes').map((d) => d.path)).toEqual(['pkg', 'cmd', 'api']);
+    expect(pickRootDirs(tree('android_webview', 'base', 'chrome', 'content', 'docs', 'third_party'), 'chromium', 'chromium').map((d) => d.path)).toEqual(['base', 'chrome', 'content', 'android_webview']);
+  });
+
+  it('limits parallel downloads', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const out = await mapWithLimit(Array.from({ length: 30 }, (_, i) => i), 8, async (i) => {
+      peak = Math.max(peak, ++inFlight);
+      await new Promise((r) => setTimeout(r, 2));
+      inFlight--;
+      return i * 2;
+    });
+    expect(peak).toBeLessThanOrEqual(8);
+    expect(out[29]).toBe(58);
+  });
+});
+

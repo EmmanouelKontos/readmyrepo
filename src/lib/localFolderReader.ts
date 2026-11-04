@@ -1,5 +1,6 @@
 import { RepoFileInput } from '../types/atlas';
-import { isAnalyzablePath, selectStratifiedPaths } from './githubFetcher';
+import { isAnalyzablePath, selectStratifiedPaths } from './pathSelection';
+import { missingImportTargets } from './importClosure';
 
 export async function readLocalDirectoryFiles(
   fileList: FileList
@@ -17,18 +18,24 @@ export async function readLocalDirectoryFiles(
     }
   }
 
-  const selected = selectStratifiedPaths(candidates, 45);
+  const selected = selectStratifiedPaths(candidates, 45, rootFolder);
   if (selected.length === 0) {
     throw new Error('That folder has no source code RepoAtlas can read (TypeScript, JavaScript, Python, Go, Rust, C/C++, Swift or Kotlin).');
   }
 
-  const files = await Promise.all(
-    selected.map(async ({ file, path }) => ({ path, content: await file.text() }))
-  );
+  const files = await Promise.all(selected.map(async ({ file, path }) => ({ path, content: await file.text() })));
+  // Same as GitHub scans: add the most-imported files the sample missed.
+  const byPath = new Map(candidates.map((c) => [c.path, c.file]));
+  const extra = missingImportTargets(files, candidates.map((c) => c.path), 12);
+  files.push(...(await Promise.all(extra.map(async (path) => ({ path, content: await byPath.get(path)!.text() })))));
+  const readable = files.filter((f) => f.content.trim().length > 0 && !f.content.includes('\u0000'));
 
+  const note = candidates.length > readable.length
+    ? `Scanned ${readable.length} of ${candidates.length.toLocaleString()} source files, picking the most connected ones.`
+    : `Scanned all ${readable.length} source files.`;
   return {
     repoName: rootFolder,
-    description: `Local workspace folder (${files.length} source files analyzed 100% locally in-browser).`,
-    files,
+    description: `Folder on your computer. Nothing was uploaded. — ${note}`,
+    files: readable,
   };
 }

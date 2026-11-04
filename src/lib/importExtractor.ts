@@ -15,10 +15,20 @@ export interface ImportSpec {
   names?: ImportBinding[];
 }
 
-function lineAt(content: string, index: number): number {
-  let line = 1;
-  for (let i = 0; i < index; i++) if (content.charCodeAt(i) === 10) line++;
-  return line;
+/** Line starts, computed once per file so each lookup is a binary search instead of a rescan. */
+function lineIndex(content: string): (index: number) => number {
+  const starts = [0];
+  for (let i = 0; i < content.length; i++) if (content.charCodeAt(i) === 10) starts.push(i + 1);
+  return (index: number) => {
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (starts[mid] <= index) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo + 1;
+  };
 }
 
 function isCommentedOut(content: string, index: number, filePath: string): boolean {
@@ -66,9 +76,10 @@ const TYPE_ONLY_NAMED = /^\{\s*(?:type\s+[\w$]+(?:\s+as\s+[\w$]+)?\s*,?\s*)+\}$/
 /** Extracts local-import candidates with type-only flags and 1-based line numbers. */
 export function extractImportsDetailed(content: string, filePath = ''): ImportSpec[] {
   const out: ImportSpec[] = [];
+  const lineAt = lineIndex(content);
   const push = (spec: string, index: number, typeOnly = false, names?: ImportBinding[], reexport = false) => {
     if (!spec || isCommentedOut(content, index, filePath)) return;
-    out.push({ spec, typeOnly, line: lineAt(content, index), ...(names ? { names } : {}), ...(reexport ? { reexport } : {}) });
+    out.push({ spec, typeOnly, line: lineAt(index), ...(names ? { names } : {}), ...(reexport ? { reexport } : {}) });
   };
   let m: RegExpExecArray | null;
 
@@ -83,7 +94,7 @@ export function extractImportsDetailed(content: string, filePath = ''): ImportSp
   }
 
   if (!filePath || /\.(m|c)?(t|j)sx?$|\.(vue|svelte)$/.test(filePath)) {
-    const es = /(?:^|[\s;])(import|export)\s+(type\s+)?([^'";]*?\bfrom\s+)?['"]([^'"\n]+)['"]/g;
+    const es = /(?:^|[\s;])(import|export)\s+(type\s+)?([^'";]{0,1500}?\bfrom\s+)?['"]([^'"\n]+)['"]/g;
     while ((m = es.exec(content)) !== null) {
       const clause = (m[3] ?? '').replace(/\s*from\s+$/, '').trim();
       // Re-exported bindings are not "used" locally; mark them so elision only trusts declarations.

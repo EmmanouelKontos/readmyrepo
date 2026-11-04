@@ -95,13 +95,14 @@ export function analyzeRepository(
   }
 
   const importsOnlyTypes = createTypeElisionChecker(files);
+  const edgeByKey = new Map<string, DependencyEdge>();
   for (const file of files) {
     const source = nodesMap.get(file.path)!;
     for (const { spec, typeOnly: declaredTypeOnly, line, names } of extractImportsDetailed(file.content, file.path)) {
       const resolved = resolveImportToFile(file.path, spec, allPaths, files);
       if (!resolved || resolved === file.path) continue;
       const typeOnly = declaredTypeOnly || importsOnlyTypes(file.path, names, resolved);
-      const existing = edges.find((e) => e.from === file.path && e.to === resolved);
+      const existing = edgeByKey.get(`${file.path}\u0000${resolved}`);
       if (existing) {
         // A value import anywhere makes the whole edge a runtime edge (and points findings at that line).
         if (!typeOnly && existing.typeOnly) {
@@ -112,12 +113,14 @@ export function analyzeRepository(
       }
       source.imports.push(resolved);
       nodesMap.get(resolved)?.importedBy.push(file.path);
-      edges.push({ from: file.path, to: resolved, isCircular: false, typeOnly, line });
+      const edge: DependencyEdge = { from: file.path, to: resolved, isCircular: false, typeOnly, line };
+      edges.push(edge);
+      edgeByKey.set(`${file.path}\u0000${resolved}`, edge);
     }
   }
 
   for (const { from, to, line } of goIntraPackageEdges(files)) {
-    if (edges.some((e) => e.from === from && e.to === to)) continue;
+    if (edgeByKey.has(`${from}\u0000${to}`)) continue;
     nodesMap.get(from)!.imports.push(to);
     nodesMap.get(to)!.importedBy.push(from);
     edges.push({ from, to, isCircular: false, typeOnly: false, line });
