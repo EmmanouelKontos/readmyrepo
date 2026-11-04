@@ -1,0 +1,517 @@
+@import "tailwindcss";
+
+:root {
+  /* Light & Dark raw tokens: Claude Warm Editorial (Light) + Warm Obsidian / Carbon (Dark) */
+  --bg-canvas-light: #FAF8F4;
+  --bg-canvas-dark: #121211;
+
+  --bg-surface-light: #FFFFFF;
+  --bg-surface-dark: #1A1A18;
+
+  --bg-elevated-light: #F3F0E8;
+  --bg-elevated-dark: #232320;
+
+  --bg-subtle-light: #E9E5DB;
+  --bg-subtle-dark: #2C2C28;
+
+  --text-primary-light: #161615;
+  --text-primary-dark: #F5F4EF;
+
+  --text-secondary-light: #52514C;
+  --text-secondary-dark: #B0AEA6;
+
+  --text-muted-light: #78766F;
+  --text-muted-dark: #7E7C74;
+
+  --border-hairline-light: rgba(22, 22, 21, 0.09);
+  --border-hairline-dark: rgba(255, 255, 255, 0.085);
+
+  --border-strong-light: rgba(22, 22, 21, 0.18);
+  --border-strong-dark: rgba(255, 255, 255, 0.17);
+
+  --accent-brand-light: #C2532B;
+  --accent-brand-dark: #E07A56;
+
+  --accent-brand-soft-light: rgba(194, 83, 43, 0.11);
+  --accent-brand-soft-dark: rgba(224, 122, 86, 0.15);
+
+  --scrollbar-thumb-light: #C4C1B8;
+  --scrollbar-thumb-dark: #3E3E3A;
+  --scrollbar-track-light: #F3F0E8;
+  --scrollbar-track-dark: #1A1A18;
+
+  /* Default fallback values (Light) */
+  --bg-canvas: var(--bg-canvas-light);
+  --bg-surface: var(--bg-surface-light);
+  --bg-elevated: var(--bg-elevated-light);
+  --bg-subtle: var(--bg-subtle-light);
+  --text-primary: var(--text-primary-light);
+  --text-secondary: var(--text-secondary-light);
+  --text-muted: var(--text-muted-light);
+  --border-hairline: var(--border-hairline-light);
+  --border-strong: var(--border-strong-light);
+  --accent-brand: var(--accent-brand-light);
+  --accent-brand-soft: var(--accent-brand-soft-light);
+  --scrollbar-thumb: var(--scrollbar-thumb-light);
+  --scrollbar-track: var(--scrollbar-track-light);
+
+  /* Fallback for browsers without light-dark() support */
+  @media (prefers-color-scheme: dark) {
+    --bg-canvas: var(--bg-canvas-dark);
+    --bg-surface: var(--bg-surface-dark);
+    --bg-elevated: var(--bg-elevated-dark);
+    --bg-subtle: var(--bg-subtle-dark);
+    --text-primary: var(--text-primary-dark);
+    --text-secondary: var(--text-secondary-dark);
+    --text-muted: var(--text-muted-dark);
+    --border-hairline: var(--border-hairline-dark);
+    --border-strong: var(--border-strong-dark);
+    --accent-brand: var(--accent-brand-dark);
+    --accent-brand-soft: var(--accent-brand-soft-dark);
+    --scrollbar-thumb: var(--scrollbar-thumb-dark);
+    --scrollbar-track: var(--scrollbar-track-dark);
+  }
+
+  /* Modern light-dark() automatic resolution */
+  @supports (color: light-dark(white, black)) {
+    --bg-canvas: light-dark(var(--bg-canvas-light), var(--bg-canvas-dark));
+    --bg-surface: light-dark(var(--bg-surface-light), var(--bg-surface-dark));
+    --bg-elevated: light-dark(var(--bg-elevated-light), var(--bg-elevated-dark));
+    --bg-subtle: light-dark(var(--bg-subtle-light), var(--bg-subtle-dark));
+    --text-primary: light-dark(var(--text-primary-light), var(--text-primary-dark));
+    --text-secondary: light-dark(var(--text-secondary-light), var(--text-secondary-dark));
+    --text-muted: light-dark(var(--text-muted-light), var(--text-muted-dark));
+    --border-hairline: light-dark(var(--border-hairline-light), var(--border-hairline-dark));
+    --border-strong: light-dark(var(--border-strong-light), var(--border-strong-dark));
+    --accent-brand: light-dark(var(--accent-brand-light), var(--accent-brand-dark));
+    --accent-brand-soft: light-dark(var(--accent-brand-soft-light), var(--accent-brand-soft-dark));
+    --scrollbar-thumb: light-dark(var(--scrollbar-thumb-light), var(--scrollbar-thumb-dark));
+    --scrollbar-track: light-dark(var(--scrollbar-track-light), var(--scrollbar-track-dark));
+  }
+
+  color-scheme: light dark;
+  accent-color: var(--accent-brand);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+
+  &:has(> head > meta[name="color-scheme"][content="dark"]) {
+    color-scheme: dark;
+  }
+  &:has(> head > meta[name="color-scheme"][content="light"]) {
+    color-scheme: light;
+  }
+}
+
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+}
+
+/* Base Typography & Readability (modern-web-guidance: typography & improve-text-layout-and-legibility) */
+body {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
+  text-align: start;
+  overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+}
+
+/* Targeted balanced wrapping on unboxed headings */
+h1, h2, h3, .balance-heading {
+  text-wrap: balance;
+  line-height: 1.18;
+  letter-spacing: -0.026em;
+}
+
+/* Targeted pretty wrapping on multi-line body copy to prevent orphaned words */
+p, blockquote, li, .pretty-copy {
+  text-wrap: pretty;
+}
+
+/* Fluid Typography Scales using rem + vw inside clamp() */
+.heading-hero {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: clamp(1.625rem, 1.3rem + 1.4vw, 2.25rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.032em;
+}
+
+.heading-section {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: clamp(1.0625rem, 0.98rem + 0.35vw, 1.25rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.font-serif-editorial {
+  font-family: 'Newsreader', Georgia, serif;
+}
+
+.font-display {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.025em;
+}
+
+.font-mono-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Readable measure cap (65ch-75ch) */
+.measure-readable {
+  max-width: 72ch;
+}
+
+/* Accessible Focus Indicators (modern-web-guidance: accessibility) */
+:where(a:any-link, button, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--accent-brand);
+  outline-offset: 2px;
+}
+
+/* Visually Hidden Utility with focus-within opt-out for Skip Links */
+.visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+.skip-link:focus-visible {
+  position: fixed;
+  inset-block-start: 0.75rem;
+  inset-inline-start: 0.75rem;
+  z-index: 100;
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* Native modal dialog backdrop, scroll containment & top-layer transitions (modern-web-guidance: dialog & animate-to-from-top-layer) */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog.atlas-dialog {
+  margin: auto;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 1rem;
+  padding: 0;
+  max-width: min(56rem, 94vw);
+  width: 100%;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: scale(0.98);
+  transition-property: opacity, transform, display, overlay;
+  transition-duration: 0.12s;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-behavior: allow-discrete;
+}
+
+dialog.atlas-dialog[open] {
+  opacity: 1;
+  transform: scale(1);
+
+  @starting-style {
+    opacity: 1;
+    transform: scale(0.97) translateY(6px);
+  }
+}
+
+dialog.atlas-dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background-color: rgba(12, 12, 11, 0);
+  backdrop-filter: blur(6px);
+  transition-property: background-color, display, overlay;
+  transition-duration: 0.15s;
+  transition-timing-function: ease-out;
+  transition-behavior: allow-discrete;
+}
+
+dialog.atlas-dialog[open]::backdrop {
+  background-color: rgba(12, 12, 11, 0.72);
+
+  @starting-style {
+    background-color: rgba(12, 12, 11, 0.72);
+  }
+}
+
+/* Compositor-friendly panel, collapsible & interactive transitions (modern-web-guidance: motion & animate-element-entry-exit) */
+@keyframes atlas-panel-enter {
+  from {
+    opacity: 0.92;
+    translate: 0 5px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes atlas-dash-flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.atlas-panel-animate {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: atlas-panel-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+/* Discrete display entry/exit transition for collapsible drawers (animate-element-entry-exit) */
+.atlas-collapsible {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    display 220ms,
+    opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    translate 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-behavior: allow-discrete;
+}
+
+@starting-style {
+  .atlas-collapsible {
+    opacity: 0;
+    translate: 0 -6px;
+  }
+}
+
+.atlas-collapsible[hidden] {
+  display: none;
+  opacity: 0;
+  translate: 0 -6px;
+}
+
+.atlas-interactive-card {
+  contain: layout style;
+  transition:
+    translate 190ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 190ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 190ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  @media (prefers-reduced-motion: no-preference) {
+    &:hover {
+      translate: 0 -2px;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+    }
+    &:active {
+      translate: 0 0;
+    }
+  }
+}
+
+.atlas-pill-btn {
+  transition:
+    translate 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+
+  @media (prefers-reduced-motion: no-preference) {
+    &:hover:not(:disabled) {
+      translate: 0 -1px;
+    }
+    &:active:not(:disabled) {
+      translate: 0 0;
+    }
+  }
+}
+
+.atlas-svg-node {
+  transition:
+    opacity 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 180ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  @media (prefers-reduced-motion: no-preference) {
+    &:hover {
+      filter: drop-shadow(0 4px 10px rgba(217, 119, 87, 0.18));
+    }
+  }
+}
+
+.atlas-edge-animated {
+  @media (prefers-reduced-motion: no-preference) {
+    stroke-dasharray: 6 6;
+    animation: atlas-dash-flow 1.1s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.atlas-dialog,
+  .atlas-collapsible {
+    transform: none;
+    translate: none;
+    transition-duration: 0.08s;
+  }
+  @starting-style {
+    dialog.atlas-dialog[open],
+    .atlas-collapsible {
+      transform: none;
+      translate: none;
+    }
+  }
+  .atlas-collapsible[hidden] {
+    translate: none;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* Responsive Audit Table per modern-web-guidance (responsive-table & responsive-design) */
+.table-wrapper {
+  overflow: auto;
+  max-inline-size: 100%;
+  max-block-size: min(44rem, 78vh);
+  max-block-size: min(44rem, 78dvh);
+  container-type: inline-size;
+  contain: layout style;
+  border: 1px solid var(--border-hairline);
+  border-radius: 0.875rem;
+  background: var(--bg-surface);
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.audit-table thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  background: var(--bg-elevated);
+}
+
+.audit-table tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  background: var(--bg-surface);
+  text-align: start;
+  font-weight: 600;
+}
+
+@container (width < 640px) {
+  .audit-table,
+  .audit-table thead,
+  .audit-table tbody,
+  .audit-table tr,
+  .audit-table th,
+  .audit-table td {
+    display: block;
+    max-inline-size: none;
+    text-align: start;
+  }
+
+  .audit-table thead {
+    display: none;
+  }
+
+  .audit-table tr {
+    margin-block-end: 1rem;
+    border-bottom: 1px solid var(--border-strong);
+    padding-bottom: 0.75rem;
+  }
+
+  .audit-table tbody th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border-hairline);
+  }
+
+  .audit-table td {
+    padding-block: 0.5rem;
+  }
+
+  .audit-table {
+    --label-2: "Category";
+    --label-3: "Severity";
+    --label-4: "Location";
+    --label-5: "Diagnosis & Fix";
+    --label-6: "Action";
+  }
+
+  .audit-table td:nth-child(2)::before {
+    content: var(--label-2) ": ";
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  .audit-table td:nth-child(3)::before {
+    content: var(--label-3) ": ";
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  .audit-table td:nth-child(4)::before {
+    content: var(--label-4) ": ";
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  .audit-table td:nth-child(5)::before {
+    content: var(--label-5) ": ";
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  .audit-table td:nth-child(6)::before {
+    content: var(--label-6) ": ";
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+}
+
+.spa-view {
+  contain: layout style;
+}
+
+.spa-view.inactive {
+  content-visibility: hidden;
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@supports not (content-visibility: hidden) {
+  .spa-view.inactive {
+    display: none;
+  }
+}

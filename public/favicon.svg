@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <style>
+    .bg { fill: #161615; }
+    .ring { stroke: #FAF8F4; stroke-opacity: 0.22; }
+    .edge { stroke: #FAF8F4; stroke-opacity: 0.78; }
+    .needle-north { fill: #E07A56; }
+    .needle-south { fill: #FAF8F4; fill-opacity: 0.88; }
+    .node-accent { fill: #E07A56; stroke: #161615; }
+    .node-light { fill: #FAF8F4; stroke: #161615; }
+    @media (prefers-color-scheme: light) {
+      .bg { fill: #181816; }
+    }
+  </style>
+  <!-- Squircle Emblem Base -->
+  <rect class="bg" x="2" y="2" width="60" height="60" rx="15" stroke="#E07A56" stroke-opacity="0.35" stroke-width="1.5" />
+
+  <!-- Outer Astrolabe Meridian Ring -->
+  <circle class="ring" cx="32" cy="32" r="21" stroke-width="1.5" stroke-dasharray="3 3" />
+  <circle class="ring" cx="32" cy="32" r="13.5" stroke-width="1.2" />
+
+  <!-- Cardinal Calibration Ticks -->
+  <path d="M32 7V11M32 53V57M7 32H11M53 32H57" stroke="#E07A56" stroke-width="1.75" stroke-linecap="round" />
+
+  <!-- Directed AST Graph Constellation Edges -->
+  <path class="edge" d="M18 44L32 16L46 42L18 44Z" stroke-width="1.6" stroke-linejoin="round" />
+
+  <!-- Compass Rose / Astrolabe Needle -->
+  <polygon class="needle-north" points="32,13 36.8,32 32,29.2 27.2,32" />
+  <polygon class="needle-south" points="32,51 36.8,32 32,34.8 27.2,32" />
+
+  <!-- AST Topology Nodes -->
+  <circle class="node-accent" cx="32" cy="14" r="3.8" stroke-width="1.6" />
+  <circle class="node-light" cx="17.5" cy="43.5" r="3.4" stroke-width="1.6" />
+  <circle class="node-light" cx="46.5" cy="42.5" r="3.4" stroke-width="1.6" />
+  <circle fill="#161615" cx="32" cy="32" r="2.2" />
+</svg>
