@@ -78,3 +78,11 @@ visitor's browser talks to GitHub directly, so each visitor has their own GitHub
 - Repository content is only ever rendered as text; no `innerHTML` anywhere in the app.
 - Tokens stay in memory for the tab, are sent only to `api.github.com`, and are never written to storage or the URL.
 - Every analyzer regex is bounded and linear-time on untrusted input (fuzzed with 160 KB adversarial files).
+
+## Support & license
+
+Made by [Emmanouil Kontos](https://github.com/EmmanouelKontos). If ReadMyRepo helps you, you can
+[buy me a coffee](https://buymeacoffee.com/emmanouilkontos).
+
+Released under the [MIT License](LICENSE).
+

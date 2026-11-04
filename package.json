@@ -2,6 +2,12 @@
   "name": "readmyrepo",
   "private": true,
   "version": "1.0.0",
+  "license": "MIT",
+  "author": "Emmanouil Kontos (https://github.com/EmmanouelKontos)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EmmanouelKontos/readmyrepo"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite --port 5173 --host",
