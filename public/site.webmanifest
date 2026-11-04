@@ -1,6 +1,6 @@
 {
-  "name": "RepoAtlas",
-  "short_name": "RepoAtlas",
+  "name": "ReadMyRepo",
+  "short_name": "ReadMyRepo",
   "description": "Dependency map, security and performance findings, and an AGENTS.md for any GitHub repository, all in your browser.",
   "start_url": "/",
   "display": "standalone",

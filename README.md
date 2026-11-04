@@ -1,6 +1,14 @@
-# RepoAtlas — Architecture, Security & AI Context Intelligence
+# ReadMyRepo
 
-**RepoAtlas** is a zero-server, 100% client-side static repository intelligence workspace that transforms any GitHub repository (public or private) or local workspace folder into an interactive **AST Dependency Graph**, **16-Rule Forensic Security & Performance Audit**, and **1-Click `AGENTS.md` + Master Refactoring Blueprint**.
+**See how a codebase fits together.** Paste any GitHub repository (or open a folder on your computer) and ReadMyRepo
+shows you:
+
+- **A map of the code** — which files use which, grouped by role, with import loops and oversized files highlighted.
+- **What could be risky or slow** — 17 checks for leaked keys, unsafe HTML and SQL, slow database patterns and messy
+  structure, each explained in plain words with a fix.
+- **A guide for your AI coding assistant** — a ready-made `AGENTS.md` plus one prompt that fixes everything found.
+
+Everything runs in your browser: there is no server, and your code is never uploaded.
 
 ---
 
@@ -42,11 +50,11 @@ bun run build
 
 ## Deploying to Cloudflare Pages
 
-RepoAtlas is a pure static SPA with pre-configured Cloudflare Pages headers (`public/_headers`) and SPA routing (`public/_redirects`):
+ReadMyRepo is a pure static SPA with pre-configured Cloudflare Pages headers (`public/_headers`) and SPA routing (`public/_redirects`):
 
 ```bash
 bun run build
-bunx wrangler pages deploy dist --project-name repo-atlas
+bunx wrangler pages deploy dist --project-name readmyrepo
 ```
 
 ### How it scales

@@ -40,7 +40,7 @@ function collectSrcFiles(dir: string, rootDir: string): RepoFileInput[] {
   return results;
 }
 
-describe('RepoAtlas Static Analyzer, Security & Performance Suite', () => {
+describe('ReadMyRepo Static Analyzer, Security & Performance Suite', () => {
   it('classifies architectural layers accurately', () => {
     expect(classifyLayer('package.json')).toBe('config');
     expect(classifyLayer('src/types/atlas.ts')).toBe('data');
@@ -220,10 +220,10 @@ export async function loadDependent() {
     expect(res.scores.overall).toBe(Math.round(100 * 0.38 + 100 * 0.32 + 72 * 0.3)); // 92
   });
 
-  it('verifies RepoAtlas own source code has 100/100 architecture (0 circular deps, 0 god files >220 LOC)', () => {
+  it('verifies ReadMyRepo own source code has 100/100 architecture (0 circular deps, 0 god files >220 LOC)', () => {
     const projectRoot = join(import.meta.dir, '..');
     const srcFiles = collectSrcFiles(join(projectRoot, 'src'), projectRoot);
-    const selfAudit = analyzeRepository('RepoAtlas', 'Self Audit', 'Workspace', srcFiles);
+    const selfAudit = analyzeRepository('ReadMyRepo', 'Self Audit', 'Workspace', srcFiles);
 
     expect(selfAudit.scores.circularDepsCount).toBe(0);
     expect(selfAudit.scores.godFilesCount).toBe(0);

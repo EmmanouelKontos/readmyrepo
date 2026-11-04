@@ -40,7 +40,7 @@ export function parseGitHubInput(repoInput: string): { owner: string; repo: stri
   const trimmed = repoInput.trim();
   const isGitHubUrl = /^(?:https?:\/\/)?(?:www\.)?github\.com[/:]/i.test(trimmed) || /^git@github\.com:/i.test(trimmed);
   if (!isGitHubUrl && (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) || /^[\w-]+(\.[\w-]+)+\//.test(trimmed))) {
-    throw new Error('RepoAtlas reads GitHub repositories. Paste a github.com link or owner/repo, for example vercel/next.js.');
+    throw new Error('ReadMyRepo reads GitHub repositories. Paste a github.com link or owner/repo, for example vercel/next.js.');
   }
   const cleaned = trimmed
     .replace(/^git@github\.com:/i, '')
@@ -191,8 +191,8 @@ export async function fetchGitHubRepoFiles(
       rateLimited
         ? token ? 'GitHub is limiting requests for this token right now. Wait a few minutes and try again.' : RATE_LIMIT_MESSAGE
         : branchHint || subpath
-          ? `Couldn’t open ${subpath ? `the folder "${subpath}"` : 'that branch'}${branchHint ? ` on branch "${branchHint}"` : ''}, or it has no source code RepoAtlas can read. Check the link, or paste just ${owner}/${repo}.`
-          : 'No source code RepoAtlas can read was found here. It supports TypeScript, JavaScript, Python, Go, Rust, C/C++, Swift and Kotlin files.'
+          ? `Couldn’t open ${subpath ? `the folder "${subpath}"` : 'that branch'}${branchHint ? ` on branch "${branchHint}"` : ''}, or it has no source code ReadMyRepo can read. Check the link, or paste just ${owner}/${repo}.`
+          : 'No source code ReadMyRepo can read was found here. It supports TypeScript, JavaScript, Python, Go, Rust, C/C++, Swift and Kotlin files.'
     );
   }
   // Only private repositories need the (metered) contents API; public files come from raw.githubusercontent.com.

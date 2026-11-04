@@ -7,6 +7,7 @@ export interface CompactBaselineSnapshot {
   findingKeys: string[];
 }
 
+// Storage keys keep the original 'repo-atlas' prefix so existing pinned projects and baselines survive the rename.
 const STORAGE_KEY = 'repo-atlas-baselines-v1';
 const memoryBaselines = new Map<string, CompactBaselineSnapshot>();
 

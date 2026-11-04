@@ -74,10 +74,10 @@ const TAB_TITLE: Record<WorkspaceTab, string> = { graph: 'Map', audit: 'Findings
 export function useDocumentTitle(repoName: string | null, activeTab: WorkspaceTab, findingsCount: number) {
   useEffect(() => {
     if (!repoName) {
-      document.title = 'RepoAtlas · See how a codebase fits together';
+      document.title = 'ReadMyRepo · See how a codebase fits together';
       return;
     }
     const tab = activeTab === 'audit' ? `${TAB_TITLE.audit} (${findingsCount})` : TAB_TITLE[activeTab];
-    document.title = `${tab} · ${repoName} | RepoAtlas`;
+    document.title = `${tab} · ${repoName} | ReadMyRepo`;
   }, [repoName, activeTab, findingsCount]);
 }

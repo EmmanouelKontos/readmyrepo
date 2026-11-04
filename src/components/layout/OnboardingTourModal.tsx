@@ -24,7 +24,7 @@ const TOUR_STEPS: TourStep[] = [
     id: 'stacks',
     title: 'Works across stacks',
     description:
-      'Paste any GitHub repository and RepoAtlas reads its code in your browser: web apps, Chrome extensions, desktop apps, and Python, Go, Rust or C projects. Try an example project first.',
+      'Paste any GitHub repository and ReadMyRepo reads its code in your browser: web apps, Chrome extensions, desktop apps, and Python, Go, Rust or C projects. Try an example project first.',
     points: [
       'Next.js, Vite and Supabase web apps',
       'Chrome extensions and Tauri or Electron desktop apps',

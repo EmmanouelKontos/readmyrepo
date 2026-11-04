@@ -20,7 +20,7 @@ export async function readLocalDirectoryFiles(
 
   const selected = selectStratifiedPaths(candidates, 45, rootFolder);
   if (selected.length === 0) {
-    throw new Error('That folder has no source code RepoAtlas can read (TypeScript, JavaScript, Python, Go, Rust, C/C++, Swift or Kotlin).');
+    throw new Error('That folder has no source code ReadMyRepo can read (TypeScript, JavaScript, Python, Go, Rust, C/C++, Swift or Kotlin).');
   }
 
   const files = await Promise.all(selected.map(async ({ file, path }) => ({ path, content: await file.text() })));

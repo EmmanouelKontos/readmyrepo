@@ -1,5 +1,6 @@
 import { PinnedProjectRecord, RepoAnalysisResult, RepoFileInput } from '../types/atlas';
 
+// Storage keys keep the original 'repo-atlas' prefix so existing pinned projects and baselines survive the rename.
 const STORAGE_KEY = 'repo-atlas-pinned-v1';
 const IDB_NAME = 'repo-atlas-idb-v1';
 const IDB_STORE = 'pinned_files';

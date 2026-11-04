@@ -1,5 +1,5 @@
 import { HelpCircle, Layers, ListChecks, Moon, Search, Sparkles, Sun, X } from 'lucide-react';
-import { RepoAtlasLogo } from '../ui/RepoAtlasLogo';
+import { BrandLogo } from '../ui/BrandLogo';
 import { useColorScheme } from '../../hooks/useColorScheme';
 
 export type WorkspaceTab = 'graph' | 'audit' | 'blueprint';
@@ -48,8 +48,8 @@ export function TopHeader({
             className="flex items-center gap-2 shrink-0 rounded-md cursor-pointer"
             title="Back to start"
           >
-            <RepoAtlasLogo size={24} />
-            <span className="font-semibold tracking-tight text-[1rem]">RepoAtlas</span>
+            <BrandLogo size={24} />
+            <span className="font-semibold tracking-tight text-[1rem]">ReadMyRepo</span>
           </button>
 
           {repoSlug && (

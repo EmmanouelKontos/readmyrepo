@@ -20,6 +20,7 @@ import { PRESET_REPOSITORIES } from './lib/presetRepos';
 import { computeSnapshotDiff, getOrStoreBaseline, resetBaselineForRepo } from './lib/snapshotTracker';
 import { AuditCategory, PinnedProjectRecord, RepoAnalysisResult, RepoFileInput } from './types/atlas';
 
+// Storage keys keep the original 'repo-atlas' prefix so existing pinned projects and baselines survive the rename.
 const TOUR_STORAGE_KEY = 'repo-atlas-tour-completed-v1';
 
 export function App() {

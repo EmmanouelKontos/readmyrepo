@@ -15,7 +15,7 @@ export function AppFooter() {
   return (
     <footer className="divider-t mt-10">
       <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between gap-3 text-[0.8125rem] text-muted">
-        <span>RepoAtlas · Runs entirely in your browser</span>
+        <span>ReadMyRepo · Runs entirely in your browser</span>
         <span className="hidden sm:inline-flex items-center gap-1.5"><kbd>⌘K</kbd> to search</span>
       </div>
     </footer>

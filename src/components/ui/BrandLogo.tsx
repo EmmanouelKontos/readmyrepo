@@ -1,14 +1,14 @@
-interface RepoAtlasLogoProps {
+interface BrandLogoProps {
   size?: number;
   className?: string;
 }
 
 /**
- * RepoAtlas "Summit" mark — a relief-shaded peak (lit face + shadow face, as on an atlas
- * relief map) that doubles as an "A", sheltering the root node of a dependency graph in the
+ * ReadMyRepo "Summit" mark — a relief-shaded peak (lit face + shadow face, as on a relief map):
+ * the bird's-eye view of a codebase, sheltering the root node of its dependency graph in the
  * brand accent. Drawn on a 32px grid so it holds from a 16px favicon up to app-icon sizes.
  */
-export function RepoAtlasLogo({ size = 24, className = '' }: RepoAtlasLogoProps) {
+export function BrandLogo({ size = 24, className = '' }: BrandLogoProps) {
   return (
     <svg
       width={size}
