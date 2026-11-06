@@ -1,92 +1,151 @@
+<div align="center">
+
+<img src="public/icon-192.png" alt="" width="72" height="72">
+
 # ReadMyRepo
 
-**Try it: [readmyrepo.com](https://readmyrepo.com)** · free, open source, no sign-up
+**Understand any GitHub repository in seconds.**
 
-[![ReadMyRepo: understand any GitHub repo in seconds](public/og-image.png)](https://readmyrepo.com)
+See how the files connect, find what is risky or slow, and hand the project to your AI coding assistant.
 
-**See how a codebase fits together.** Paste any GitHub repository (or open a folder on your computer) and ReadMyRepo
-shows you:
+[![ReadMyRepo score: 100/100](https://img.shields.io/badge/ReadMyRepo-100%2F100%20healthy-2ea44f?logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjUgNiAyMiAyMSI%2BPHBhdGggZmlsbD0iI2ZmZiIgZD0iTTE2IDcgMjYgMjUuNWgtNS40TDE2IDE2LjlaIi8%2BPHBhdGggZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuNTUiIGQ9Ik0xNiA3IDYgMjUuNWg1LjRMMTYgMTYuOVoiLz48Y2lyY2xlIGZpbGw9IiNFMDgwNUUiIGN4PSIxNiIgY3k9IjIzLjEiIHI9IjIuMyIvPjwvc3ZnPg%3D%3D)](https://readmyrepo.com/?repo=EmmanouelKontos/readmyrepo)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-- **A map of the code** — which files use which, grouped by role, with import loops and oversized files highlighted.
-- **What could be risky or slow** — 17 checks for leaked keys, unsafe HTML and SQL, slow database patterns and messy
-  structure, each explained in plain words with a fix.
-- **A guide for your AI coding assistant** — a ready-made `AGENTS.md` plus one prompt that fixes everything found.
+[**readmyrepo.com**](https://readmyrepo.com) · free · no sign-up · runs entirely in your browser
 
-Everything runs in your browser: there is no server, and your code is never uploaded.
+</div>
 
----
+<br>
 
-## Key Capabilities
+![The dependency map for colinhacks/zod, with one file selected and its imports highlighted](docs/images/map.png)
 
-- **Multi-Language Dependency Graph**:
-  - Resolves cross-file dependencies across **TypeScript / JavaScript** (ESM, CommonJS, tsconfig aliases, `.js` → `.ts`, barrel re-exports), **Python** (relative and absolute imports, submodule vs. package `__init__`), **Go** (`go.mod` module paths plus symbol-level links between files of one package), **Rust** (`mod`, grouped `use crate::{…}`, `super::` / `self::`), **C / C++** (`#include`), **Chrome Extensions (MV3)** (`manifest.json` → service worker & content scripts) and **Tauri v2** (`invoke('cmd')` → `#[tauri::command]`).
-  - Type-only imports (explicit `import type` *and* bindings TypeScript erases because they are only used as types) are kept out of cycle detection, so reported cycles are runtime cycles.
-  - Large repositories are sampled by directory, then the sample is completed with the hub modules it imports (shared headers, utils, base classes) so the graph stays connected.
-  - Interactive SVG map with zoom, layer lanes that wrap busy layers into columns, 1-hop dependency spotlight and cycle highlighting (Tarjan SCC).
-- **Static Analysis Engine**:
-  - Comment-aware scanning with **8 Security Rules** (`SEC-001`–`SEC-008`), **6 Performance Rules** (`PERF-001`–`PERF-006`) and **3 Architecture Rules** (`ARCH-001` oversized module — 220 code lines for UI components, 400 for logic modules, 800 for C/C++/Rust/Go; `ARCH-002` circular dependency; `ARCH-003` upward layer inversion).
-- **Live In-Browser Remediation & Score Delta Tracking**:
-  - Inspect any module in the **Live Code Inspector**, apply a 1-click **"Simulate AI Fix & Re-Scan"** or edit code directly, and watch Architecture, Security, Performance, and Token Footprint deltas update in real time.
-- **Persistent Pinned Projects (Two-Tier Browser Cache)**:
-  - Pin any scanned repository to store lightweight metadata in `localStorage` and full file snapshots in **IndexedDB** (`repo-atlas-idb-v1`) for instant offline reload and baseline score comparison.
-- **Zero-Trust Privacy & Private Repository Support**:
-  - Fine-grained GitHub Personal Access Tokens (`github_pat_...` / `ghp_...`) are held strictly in volatile React memory (`credentials: 'omit'`), validated against strict format and outbound host allowlists (`api.github.com`, `raw.githubusercontent.com`, `ungh.cc`), and never persisted to disk.
+## Why
 
----
+The first hour in an unfamiliar codebase is mostly orientation: which files matter, what depends on what, and where
+the problems are. ReadMyRepo answers those questions from a single link, and writes the result down in a form an AI
+assistant can use.
 
-## Local Development
+## Features
+
+- **Dependency map.** Every file is a box and every arrow points to a file it uses, grouped into layers (entry
+  points, features, UI, logic, types and data, config). Hover to preview a file's links, click to pin them.
+  Import loops are drawn in red and oversized files in orange.
+- **Findings in plain English.** 17 static checks cover leaked secrets, unsafe HTML and SQL, slow request and
+  query patterns, import loops and oversized files. Each finding links to the exact line and explains why it
+  matters and how to fix it.
+- **Scores.** Security, performance and architecture are each scored out of 100, with a short explanation of how
+  the numbers are calculated.
+- **AI handoff.** A generated `AGENTS.md` describes the project's structure for Claude Code, Cursor, Copilot and
+  similar tools, plus a single prompt that lists every problem found, most serious first.
+- **Track progress.** Pin a project to compare later scans against the first one, or edit a file in place and
+  re-score instantly.
+- **Share.** Every public report has a link anyone can open, and a README badge that links back to it.
+
+![Findings for an example project, with one finding expanded](docs/images/findings.png)
+
+## Supported languages
+
+| Language | What is resolved |
+| --- | --- |
+| TypeScript / JavaScript | ESM and CommonJS, path aliases, `.js` to `.ts` mapping, barrel re-exports. Imports that are only used as types are excluded from loop detection, as the compiler removes them. |
+| Python | Relative and absolute imports, submodules versus package `__init__`, standard-library names |
+| Go | Module paths from `go.mod`, plus links between files of the same package by symbol use |
+| Rust | `mod`, grouped `use crate::{…}`, `super::` and `self::` paths |
+| C / C++ | Local `#include` headers |
+| Chrome extensions | `manifest.json` service workers, content scripts and pages |
+| Tauri | Frontend `invoke()` calls to `#[tauri::command]` handlers |
+
+## Checks
+
+| ID | Finds |
+| --- | --- |
+| SEC-001 | Secret keys written in the code (API keys, privileged JWTs, cloud and Git tokens, private keys) |
+| SEC-002 | Secrets exposed to the browser through `NEXT_PUBLIC_` or `VITE_` variables |
+| SEC-003 | Raw HTML inserted into the page without sanitising (XSS) |
+| SEC-004 | SQL built from raw values (injection); tagged templates and bound parameters are recognised as safe |
+| SEC-005 | APIs open to every origin (`Access-Control-Allow-Origin: *`) |
+| SEC-006 | Unbounded string copies in C (`strcpy`, `sprintf`, `gets`) |
+| SEC-007 | Browser extensions requesting access to every website |
+| SEC-008 | Tauri or Electron security settings turned off |
+| PERF-001 | Large pages shipped to the browser with a top-level `"use client"` |
+| PERF-002 | Independent requests awaited one after another |
+| PERF-003 | Index files re-exporting many modules with `export *` |
+| PERF-004 | A database or API call per item in a loop (N+1) |
+| PERF-005 | Queries that load every row and column |
+| PERF-006 | Busy-waits in C and `unsafe` Rust blocks without a safety note |
+| ARCH-001 | Oversized files (more than 220 lines of code for UI components, 400 for logic, 800 for C, C++, Rust and Go) |
+| ARCH-002 | Import loops (circular dependencies) |
+| ARCH-003 | Low-level files that depend on higher-level ones |
+
+The checks are pattern-based static analysis, tuned against a few dozen real open-source repositories to keep false
+positives low. They point you at likely problems; they are not a replacement for a security audit.
+
+## How it works
+
+ReadMyRepo is a static web app with no backend. The browser asks the GitHub API for the repository's file list,
+downloads the files directly from `raw.githubusercontent.com`, and analyses them locally. Nothing is uploaded or
+stored on a server.
+
+- **Large repositories are sampled.** Up to 44 of the most connected source files are analysed: a stratified
+  sample by folder, completed with the files that sample imports most. The report always says how much was read.
+- **GitHub rate limits apply per visitor.** A scan uses 2 to 6 API requests, so anonymous visitors can run roughly
+  10 to 30 scans an hour. When the limit is reached, public repositories still load through the
+  [ungh.cc](https://ungh.cc) mirror.
+- **Private repositories** can be scanned with a read-only fine-grained token. The token stays in the open tab,
+  is sent only to `api.github.com`, and is never stored.
+
+## Running locally
+
+Requires [Bun](https://bun.sh) 1.1 or later.
 
 ```bash
-# Install dependencies
+git clone https://github.com/EmmanouelKontos/readmyrepo.git
+cd readmyrepo
 bun install
-
-# Start local development server
-bun run dev
-
-# Run the analyzer test suite
-bun test
-
-# Build production bundle
-bun run build
+bun run dev        # http://localhost:5173
 ```
 
----
+| Command | Description |
+| --- | --- |
+| `bun run dev` | Start the development server |
+| `bun test` | Run the test suite |
+| `bun run build` | Type-check and build to `dist/` |
+| `bun run preview` | Serve the production build locally |
 
-## Deploying to Cloudflare Pages
+## Project structure
 
-ReadMyRepo is a pure static SPA with pre-configured Cloudflare Pages headers (`public/_headers`) and SPA routing (`public/_redirects`):
+```text
+src/
+├── components/     Shared UI: layout, dialogs and design primitives
+├── features/       Views: dependency map, findings, AI handoff, code inspector
+├── hooks/          URL state, colour scheme, element measurement
+├── lib/            Analysis engine: fetching, import resolution, checks, scoring
+├── fixtures/       Example projects shown on the home page (excluded from scans)
+└── types/          Shared types
+tests/              Analyzer, resolver and scoring tests
+public/             Icons, headers, redirects, robots.txt and sitemap
+```
+
+## Deployment
+
+The production site runs on Cloudflare Pages. `public/_headers` sets a strict Content Security Policy
+(`script-src 'self'`, network access limited to GitHub and the mirror) and the other security headers.
 
 ```bash
 bun run build
 bunx wrangler pages deploy dist --project-name readmyrepo
 ```
 
-### How it scales
+Any static host works if it serves `index.html` for unknown paths and applies equivalent headers.
 
-There is no backend. Cloudflare serves static files (free and unmetered on the Pages free plan), and every
-visitor's browser talks to GitHub directly, so each visitor has their own GitHub quota:
+## Contributing
 
-- **API requests per scan:** 2–6 (repository info plus file listings). File contents come from
-  `raw.githubusercontent.com`, which does not count against the API quota — also when a token is used, unless the
-  repository is private.
-- **Anonymous visitors:** GitHub allows about 60 API requests per hour per IP, so roughly 10–30 scans per hour.
-  When that runs out, public repositories still load through the `ungh.cc` tree mirror + raw files.
-- **With a token:** 5,000 requests per hour for that visitor.
-- **Downloads** run at most 8 at a time to stay clear of GitHub's abuse limits.
+Bug reports and pull requests are welcome. False positives and missed imports are the most useful reports:
+include the repository (or a minimal example) and what you expected to see. Please run `bun test` and
+`bun run build` before opening a pull request.
 
-### Security
+## License
 
-- Strict Content-Security-Policy in production (`public/_headers` + the in-page policy added at build time):
-  `script-src 'self'`, network access only to `api.github.com`, `raw.githubusercontent.com` and `ungh.cc`,
-  no framing, no plugins.
-- Repository content is only ever rendered as text; no `innerHTML` anywhere in the app.
-- Tokens stay in memory for the tab, are sent only to `api.github.com`, and are never written to storage or the URL.
-- Every analyzer regex is bounded and linear-time on untrusted input (fuzzed with 160 KB adversarial files).
+[MIT](LICENSE) © Emmanouil Kontos
 
-## Support & license
-
-Made by [Emmanouil Kontos](https://github.com/EmmanouelKontos). If ReadMyRepo helps you, you can
-[buy me a coffee](https://buymeacoffee.com/emmanouilkontos).
-
-Released under the [MIT License](LICENSE).
-
+If ReadMyRepo saves you time, you can [buy me a coffee](https://buymeacoffee.com/emmanouilkontos).
