@@ -3,6 +3,7 @@ import { RepoAnalysisResult, RepoSnapshotDiff } from '../../types/atlas';
 import { formatDelta, scoreLabel, scoreTone } from '../ui/scoreTone';
 import { WorkspaceTab } from './TopHeader';
 import { ScoringExplainer } from './ScoringExplainer';
+import { ShareDialog } from './ShareDialog';
 
 interface RepoHeroHeaderProps {
   analysis: RepoAnalysisResult;
@@ -13,6 +14,8 @@ interface RepoHeroHeaderProps {
   onRescanLive?: () => void;
   onResetBaseline?: () => void;
   onPrimaryAction: () => void;
+  /** Public GitHub slug when the report can be shared (re-scannable by anyone). */
+  shareSlug?: string | null;
 }
 
 export function RepoHeroHeader({
@@ -24,6 +27,7 @@ export function RepoHeroHeader({
   onRescanLive,
   onResetBaseline,
   onPrimaryAction,
+  shareSlug,
 }: RepoHeroHeaderProps) {
   const overall = analysis.scores.overall;
   // The fetcher appends "— Scanned N of M source files…" to GitHub's description; show it on its own line.
@@ -109,6 +113,7 @@ export function RepoHeroHeader({
               Rescan
             </button>
           )}
+          {shareSlug && <ShareDialog repoSlug={shareSlug} score={overall} />}
           <button type="button" onClick={onPrimaryAction} className="btn btn-primary">
             {primaryLabel}
             <ArrowRight size={14} strokeWidth={1.75} aria-hidden="true" />

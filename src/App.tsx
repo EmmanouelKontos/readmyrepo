@@ -204,7 +204,7 @@ export function App() {
         ) : (
           <>
             {pinnedProjects.length > 0 && <RepoSourceBar activeRepoSlug={analysis.repoSlug} pinnedProjects={pinnedProjects} onSelectPinned={handleSelectPinned} onUnpinProject={(slug) => setPinnedProjects(unpinProject(slug))} onAnalyzeGitHub={handleAnalyzeGitHub} onUploadFolder={handleUploadFolder} isLoading={isLoading} />}
-            <RepoHeroHeader analysis={analysis} activeTab={activeTab} diff={snapshotDiff} isPinned={isCurrentPinned} onTogglePin={handleTogglePin} onRescanLive={canRescanGitHub ? () => void handleAnalyzeGitHub(analysis.repoSlug) : undefined} onResetBaseline={handleResetBaseline} onPrimaryAction={() => handleSelectTab(analysis.findings.length > 0 && activeTab !== 'audit' ? 'audit' : 'blueprint')} />
+            <RepoHeroHeader analysis={analysis} activeTab={activeTab} diff={snapshotDiff} isPinned={isCurrentPinned} onTogglePin={handleTogglePin} onRescanLive={canRescanGitHub ? () => void handleAnalyzeGitHub(analysis.repoSlug) : undefined} onResetBaseline={handleResetBaseline} shareSlug={customResult ? sharedRepo : null} onPrimaryAction={() => handleSelectTab(analysis.findings.length > 0 && activeTab !== 'audit' ? 'audit' : 'blueprint')} />
             <ScoreOverview analysis={analysis} diff={snapshotDiff} activeTab={activeTab} auditFilter={auditFilter} onOpenTab={handleSelectTab} />
             <section {...viewProps('graph')}><ArchitectureMap nodes={analysis.nodes} edges={analysis.edges} findings={analysis.findings} onInspectCode={(n) => setInspectedPath(n.path)} /></section>
             <section {...viewProps('audit')}><AuditTable findings={analysis.findings} initialFilter={auditFilter} onSelectFilePath={setInspectedPath} /></section>
