@@ -1,5 +1,9 @@
 # ReadMyRepo
 
+**Try it: [readmyrepo.com](https://readmyrepo.com)** · free, open source, no sign-up
+
+[![ReadMyRepo: understand any GitHub repo in seconds](public/og-image.png)](https://readmyrepo.com)
+
 **See how a codebase fits together.** Paste any GitHub repository (or open a folder on your computer) and ReadMyRepo
 shows you:
 
