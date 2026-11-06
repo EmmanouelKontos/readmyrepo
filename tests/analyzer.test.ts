@@ -18,7 +18,7 @@ import {
   pinOrUpdateProject,
   unpinProject,
 } from '../src/lib/pinnedProjectsStore';
-import { PRESET_REPOSITORIES } from '../src/lib/presetRepos';
+import { PRESET_REPOSITORIES } from '../src/fixtures/presetRepos';
 import { applyQuickRemediationToCode, computeSnapshotDiff } from '../src/lib/snapshotTracker';
 import { RepoFileInput } from '../src/types/atlas';
 

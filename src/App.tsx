@@ -16,7 +16,7 @@ import { analyzeRepository } from './lib/analyzer';
 import { fetchGitHubRepoFiles } from './lib/githubFetcher';
 import { readLocalDirectoryFiles } from './lib/localFolderReader';
 import { isProjectPinned, loadFilesFromIdb, loadPinnedProjects, pinOrUpdateProject, unpinProject } from './lib/pinnedProjectsStore';
-import { PRESET_REPOSITORIES } from './lib/presetRepos';
+import { PRESET_REPOSITORIES } from './fixtures/presetRepos';
 import { computeSnapshotDiff, getOrStoreBaseline, resetBaselineForRepo } from './lib/snapshotTracker';
 import { AuditCategory, PinnedProjectRecord, RepoAnalysisResult, RepoFileInput } from './types/atlas';
 

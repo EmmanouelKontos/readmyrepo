@@ -30,7 +30,7 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             return 'vendor';
           }
-          if (id.includes('/src/lib/preset')) {
+          if (id.includes('/src/fixtures/')) {
             return 'presets';
           }
         },

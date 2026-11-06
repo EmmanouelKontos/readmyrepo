@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkspaceTab } from '../components/layout/TopHeader';
-import { PRESET_REPOSITORIES } from '../lib/presetRepos';
+import { PRESET_REPOSITORIES } from '../fixtures/presetRepos';
 import { AuditCategory } from '../types/atlas';
 
 function readInitialUrlState(): {
